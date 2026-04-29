@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>GhosttyPlugin</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.tinystone.GhosttyPlugin</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>GhosttyPlugin</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CSPluginManifest</key>
+	<dict>
+		<key>category</key>
+		<string>terminal</string>
+		<key>displayName</key>
+		<string>Ghostty</string>
+		<key>id</key>
+		<string>com.mitchellh.ghostty</string>
+		<key>kind</key>
+		<string>terminal</string>
+		<key>minHostAPIVersion</key>
+		<string>0.1.0</string>
+		<key>permissions</key>
+		<array>
+			<string>appleScript</string>
+		</array>
+		<key>principalClass</key>
+		<string>GhosttyPlugin</string>
+		<key>version</key>
+		<string>1.0.0</string>
+	</dict>
+	<key>NSPrincipalClass</key>
+	<string>GhosttyPlugin</string>
+</dict>
+</plist>

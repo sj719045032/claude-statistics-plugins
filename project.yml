@@ -1,0 +1,505 @@
+name: ClaudeStatisticsPlugins
+options:
+  bundleIdPrefix: com.tinystone
+  deploymentTarget:
+    macOS: "14.0"
+  developmentLanguage: en
+
+# Pull the SDK from the host repo's Package.swift. This catalog repo
+# does NOT bundle a copy of `ClaudeStatisticsKit` — every plugin
+# target depends on it through SwiftPM, the same way third-party
+# `.csplugin` projects will. The host repo's Package.swift declares
+# the SDK as a `.binaryTarget(url:, checksum:)` referencing an
+# `.xcframework` published as a `sdk-v<x.y.z>` GitHub release asset
+# — SwiftPM auto-fetches and unzips that binary at resolve time.
+packages:
+  ClaudeStatisticsKit:
+    url: https://github.com/sj719045032/claude-statistics
+    branch: main
+
+settingGroups:
+  pluginBundle:
+    base:
+      WRAPPER_EXTENSION: csplugin
+      MACH_O_TYPE: mh_bundle
+      MARKETING_VERSION: "1.0.0"
+      CURRENT_PROJECT_VERSION: "1"
+      SKIP_INSTALL: NO
+      CODE_SIGN_IDENTITY: "-"
+      CODE_SIGN_STYLE: Automatic
+      SWIFT_STRICT_CONCURRENCY: minimal
+
+targets:
+  AlacrittyPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/AlacrittyPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/AlacrittyPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.AlacrittyPlugin
+        CFBundleName: AlacrittyPlugin
+        CFBundleExecutable: AlacrittyPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: AlacrittyPlugin
+        CSPluginManifest:
+          id: org.alacritty
+          kind: terminal
+          displayName: Alacritty
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: AlacrittyPlugin
+          category: terminal
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.AlacrittyPlugin
+        PRODUCT_NAME: AlacrittyPlugin
+
+  ClaudeAppPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/ClaudeAppPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/ClaudeAppPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.ClaudeAppPlugin
+        CFBundleName: ClaudeAppPlugin
+        CFBundleExecutable: ClaudeAppPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: ClaudeAppPlugin
+        CSPluginManifest:
+          id: com.anthropic.claudefordesktop
+          kind: terminal
+          displayName: Claude
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: ClaudeAppPlugin
+          category: chat-app
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.ClaudeAppPlugin
+        PRODUCT_NAME: ClaudeAppPlugin
+
+  CodexAppPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/CodexAppPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/CodexAppPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.CodexAppPlugin
+        CFBundleName: CodexAppPlugin
+        CFBundleExecutable: CodexAppPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: CodexAppPlugin
+        CSPluginManifest:
+          id: com.openai.codex.app
+          kind: terminal
+          displayName: Codex
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: CodexAppPlugin
+          category: chat-app
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.CodexAppPlugin
+        PRODUCT_NAME: CodexAppPlugin
+
+  CodexPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/CodexPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/CodexPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.CodexPlugin
+        CFBundleName: CodexPlugin
+        CFBundleExecutable: CodexPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: CodexPlugin
+        CSPluginManifest:
+          id: com.openai.codex
+          kind: provider
+          displayName: Codex
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions:
+            - filesystemHome
+            - network
+          principalClass: CodexPlugin
+          iconAsset: CodexProviderIcon
+          category: provider
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.CodexPlugin
+        PRODUCT_NAME: CodexPlugin
+
+  CursorPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/CursorPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/CursorPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.CursorPlugin
+        CFBundleName: CursorPlugin
+        CFBundleExecutable: CursorPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: CursorPlugin
+        CSPluginManifest:
+          id: com.todesktop.230313mzl4w4u92
+          kind: terminal
+          displayName: Cursor
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: CursorPlugin
+          category: editor-integration
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.CursorPlugin
+        PRODUCT_NAME: CursorPlugin
+
+  GeminiPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/GeminiPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/GeminiPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.GeminiPlugin
+        CFBundleName: GeminiPlugin
+        CFBundleExecutable: GeminiPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: GeminiPlugin
+        CSPluginManifest:
+          id: com.google.gemini
+          kind: provider
+          displayName: Gemini
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions:
+            - filesystemHome
+            - network
+          principalClass: GeminiPlugin
+          iconAsset: GeminiProviderIcon
+          category: provider
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.GeminiPlugin
+        PRODUCT_NAME: GeminiPlugin
+
+  GhosttyPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/GhosttyPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/GhosttyPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.GhosttyPlugin
+        CFBundleName: GhosttyPlugin
+        CFBundleExecutable: GhosttyPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: GhosttyPlugin
+        CSPluginManifest:
+          id: com.mitchellh.ghostty
+          kind: terminal
+          displayName: Ghostty
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions:
+            - appleScript
+          principalClass: GhosttyPlugin
+          category: terminal
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.GhosttyPlugin
+        PRODUCT_NAME: GhosttyPlugin
+
+  ITermPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/ITermPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/ITermPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.ITermPlugin
+        CFBundleName: ITermPlugin
+        CFBundleExecutable: ITermPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: ITermPlugin
+        CSPluginManifest:
+          id: com.googlecode.iterm2
+          kind: terminal
+          displayName: iTerm2
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions:
+            - appleScript
+          principalClass: ITermPlugin
+          category: terminal
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.ITermPlugin
+        PRODUCT_NAME: ITermPlugin
+
+  KittyPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/KittyPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/KittyPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.KittyPlugin
+        CFBundleName: KittyPlugin
+        CFBundleExecutable: KittyPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: KittyPlugin
+        CSPluginManifest:
+          id: net.kovidgoyal.kitty
+          kind: terminal
+          displayName: Kitty
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions:
+            - filesystemHome
+          principalClass: KittyPlugin
+          category: terminal
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.KittyPlugin
+        PRODUCT_NAME: KittyPlugin
+
+  TraePlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/TraePlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/TraePlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.TraePlugin
+        CFBundleName: TraePlugin
+        CFBundleExecutable: TraePlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: TraePlugin
+        CSPluginManifest:
+          id: com.trae.app
+          kind: terminal
+          displayName: Trae
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: TraePlugin
+          category: editor-integration
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.TraePlugin
+        PRODUCT_NAME: TraePlugin
+
+  VSCodePlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/VSCodePlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/VSCodePlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.VSCodePlugin
+        CFBundleName: VSCodePlugin
+        CFBundleExecutable: VSCodePlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: VSCodePlugin
+        CSPluginManifest:
+          id: com.microsoft.VSCode
+          kind: terminal
+          displayName: VSCode
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: VSCodePlugin
+          category: editor-integration
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.VSCodePlugin
+        PRODUCT_NAME: VSCodePlugin
+
+  WarpPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/WarpPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/WarpPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.WarpPlugin
+        CFBundleName: WarpPlugin
+        CFBundleExecutable: WarpPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: WarpPlugin
+        CSPluginManifest:
+          id: dev.warp.Warp-Stable
+          kind: terminal
+          displayName: Warp
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: WarpPlugin
+          category: terminal
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.WarpPlugin
+        PRODUCT_NAME: WarpPlugin
+
+  WezTermPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/WezTermPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/WezTermPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.WezTermPlugin
+        CFBundleName: WezTermPlugin
+        CFBundleExecutable: WezTermPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: WezTermPlugin
+        CSPluginManifest:
+          id: com.github.wez.wezterm
+          kind: terminal
+          displayName: WezTerm
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: WezTermPlugin
+          category: terminal
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.WezTermPlugin
+        PRODUCT_NAME: WezTermPlugin
+
+  WindsurfPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/WindsurfPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/WindsurfPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.WindsurfPlugin
+        CFBundleName: WindsurfPlugin
+        CFBundleExecutable: WindsurfPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: WindsurfPlugin
+        CSPluginManifest:
+          id: com.exafunction.windsurf
+          kind: terminal
+          displayName: Windsurf
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: WindsurfPlugin
+          category: editor-integration
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.WindsurfPlugin
+        PRODUCT_NAME: WindsurfPlugin
+
+  ZedPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/ZedPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/ZedPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.ZedPlugin
+        CFBundleName: ZedPlugin
+        CFBundleExecutable: ZedPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: ZedPlugin
+        CSPluginManifest:
+          id: dev.zed.Zed
+          kind: terminal
+          displayName: Zed
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: ZedPlugin
+          category: editor-integration
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.ZedPlugin
+        PRODUCT_NAME: ZedPlugin

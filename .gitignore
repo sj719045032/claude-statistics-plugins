@@ -1,0 +1,14 @@
+# xcodegen-generated; rebuild via `xcodegen generate`
+*.xcodeproj/
+*.xcworkspace/
+
+# SwiftPM
+.build/
+Package.resolved
+.swiftpm/
+
+# Build output
+DerivedData/
+
+# macOS
+.DS_Store
