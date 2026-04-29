@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-04-30T00:00:00Z",
+  "updatedAt": "2026-04-29T23:12:18Z",
   "entries": [
     {
       "id": "com.google.gemini",
@@ -11,10 +11,13 @@
       "category": "provider",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/GeminiPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/GeminiPlugin.csplugin.zip",
+      "sha256": "4500eb7533af64e2a71885db586ac6b25569345cfd922f57f3b756c755961ae7",
       "iconURL": null,
-      "permissions": ["filesystemHome", "network"]
+      "permissions": [
+        "filesystemHome",
+        "network"
+      ]
     },
     {
       "id": "com.openai.codex",
@@ -25,10 +28,13 @@
       "category": "provider",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/CodexPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/CodexPlugin.csplugin.zip",
+      "sha256": "4aeeb1a954b4766e4562f2b049aba26f1fedb1f48c00beea83f9b378b327d965",
       "iconURL": null,
-      "permissions": ["filesystemHome", "network"]
+      "permissions": [
+        "filesystemHome",
+        "network"
+      ]
     },
     {
       "id": "com.anthropic.claudefordesktop",
@@ -39,8 +45,8 @@
       "category": "chat-app",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/ClaudeAppPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/ClaudeAppPlugin.csplugin.zip",
+      "sha256": "bcb1b70193706b6b6299e4d0e61627d7ecfdc0d41a3bf2a4e70f1794f4f814f3",
       "iconURL": null,
       "permissions": []
     },
@@ -53,8 +59,8 @@
       "category": "chat-app",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/CodexAppPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/CodexAppPlugin.csplugin.zip",
+      "sha256": "b8ad0f3a9d3982ba46a63ced9d64237dc4688c1823eb8a9f42c57d3e34951a7f",
       "iconURL": null,
       "permissions": []
     },
@@ -67,8 +73,8 @@
       "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/AlacrittyPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/AlacrittyPlugin.csplugin.zip",
+      "sha256": "436a7934db0c83f29237faf2cac385e33a9742bb91feda6c70d1b35ae47d2ada",
       "iconURL": null,
       "permissions": []
     },
@@ -81,10 +87,12 @@
       "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/KittyPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/KittyPlugin.csplugin.zip",
+      "sha256": "fd0ac015a0c51ef88e57a0f399ffd2b7d950bf92a89b03f814701b28a3849366",
       "iconURL": null,
-      "permissions": ["filesystemHome"]
+      "permissions": [
+        "filesystemHome"
+      ]
     },
     {
       "id": "dev.warp.Warp-Stable",
@@ -95,8 +103,8 @@
       "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/WarpPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/WarpPlugin.csplugin.zip",
+      "sha256": "c69ebdb37fbec3d58119152c1b28780911c289cc37c394f1e9f1a1ae3453503b",
       "iconURL": null,
       "permissions": []
     },
@@ -109,8 +117,8 @@
       "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/WezTermPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/WezTermPlugin.csplugin.zip",
+      "sha256": "33b664a834c89f03188487247d5cac8606f983084f1261c21941c78f4e5cbf33",
       "iconURL": null,
       "permissions": []
     },
@@ -123,8 +131,8 @@
       "category": "editor-integration",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/VSCodePlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/VSCodePlugin.csplugin.zip",
+      "sha256": "c4547545e967fecde5b3f31ddc95535e6f92be356af614fa4d73cf30bcb1048d",
       "iconURL": null,
       "permissions": []
     },
@@ -137,8 +145,8 @@
       "category": "editor-integration",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/CursorPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/CursorPlugin.csplugin.zip",
+      "sha256": "9d8969b8a0eb9160236eb544beadf4755f5e1125dfb3fcc98a7c18acc2394ccf",
       "iconURL": null,
       "permissions": []
     },
@@ -151,8 +159,8 @@
       "category": "editor-integration",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/WindsurfPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/WindsurfPlugin.csplugin.zip",
+      "sha256": "a6005192816bb389d49545d0fbc63555f22afb9c847b1f6258a006cc457b3477",
       "iconURL": null,
       "permissions": []
     },
@@ -165,8 +173,8 @@
       "category": "editor-integration",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/TraePlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/TraePlugin.csplugin.zip",
+      "sha256": "b3b7c507d439b6d8af5aa0707751a741a89afb8921357f5e0ff7795cce34b0db",
       "iconURL": null,
       "permissions": []
     },
@@ -179,10 +187,42 @@
       "category": "editor-integration",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/ZedPlugin-1.0.0.csplugin.zip",
-      "sha256": "PLACEHOLDER_SHA256",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/ZedPlugin.csplugin.zip",
+      "sha256": "1716c2b29e89c18a30ec37d67d5af0b10d54e627495516e87de3b31321d47d9f",
       "iconURL": null,
       "permissions": []
+    },
+    {
+      "id": "com.googlecode.iterm2",
+      "name": "iTerm2",
+      "description": "iTerm2 terminal focus return + new-session launcher.",
+      "author": "Stone",
+      "homepage": "https://github.com/sj719045032/claude-statistics",
+      "category": "terminal",
+      "version": "1.0.0",
+      "minHostAPIVersion": "0.1.0",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/ITermPlugin.csplugin.zip",
+      "sha256": "4929f1dd8875d8672123eab7dec71e1af27d35ccbf4187fef193b23bd3f828b8",
+      "iconURL": null,
+      "permissions": [
+        "appleScript"
+      ]
+    },
+    {
+      "id": "com.mitchellh.ghostty",
+      "name": "Ghostty",
+      "description": "Ghostty terminal focus return + new-session launcher.",
+      "author": "Stone",
+      "homepage": "https://github.com/sj719045032/claude-statistics",
+      "category": "terminal",
+      "version": "1.0.0",
+      "minHostAPIVersion": "0.1.0",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/GhosttyPlugin.csplugin.zip",
+      "sha256": "4d9ca883f5af695ecea7e2c7eb9fdff5e779beeda7c2b9f892d18e569fdf052e",
+      "iconURL": null,
+      "permissions": [
+        "appleScript"
+      ]
     }
   ]
 }
