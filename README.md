@@ -112,12 +112,69 @@ A pre-merge sanity check should be a one-liner:
 grep PLACEHOLDER_SHA256 index.json && echo "still has placeholders, do not publish"
 ```
 
+## Building & releasing first-party plugins (catalog maintainers)
+
+The 15 first-party plugin sources live under `Sources/<X>Plugin/`,
+each conforming to one of the SDK's plugin protocols. The build is
+xcodegen-driven (cfbundle output is what `.csplugin` needs and SwiftPM
+doesn't support) but the SDK dependency itself is SwiftPM-resolved
+from the host repo's `Package.swift` (`packages.ClaudeStatisticsKit.url`
+in `project.yml`).
+
+```bash
+# One-command release: xcodegen → xcodebuild → pack → sync
+# index.json → push catalog commit → gh release create.
+bash scripts/release-plugins.sh <version>
+# Example: bash scripts/release-plugins.sh 1.0.0
+```
+
+Prereqs:
+
+- `xcodegen`, `gh`, and `jq` on PATH. `gh` must be authenticated as
+  the catalog repo owner.
+- A reachable `sdk-v<x.y.z>` GitHub release on the host repo with
+  `ClaudeStatisticsKit.xcframework.zip` uploaded — the host's
+  `Package.swift` `binaryTarget` URL points at it. xcodebuild
+  resolves the SDK at SwiftPM-resolution time, so the SDK release
+  must already exist.
+
+What the script does, step by step:
+
+1. `xcodegen generate` produces `ClaudeStatisticsPlugins.xcodeproj`.
+2. `xcodebuild -alltargets -configuration Release` builds every
+   plugin bundle. Each one links
+   `@rpath/ClaudeStatisticsKit.framework` so plugin-runtime metadata
+   matches the host's framework instance — no static SDK in the
+   bundle, no protocol-descriptor duplication.
+3. `pack-csplugin.sh <Name>` zips each `.csplugin` into
+   `build/marketplace/<Name>.csplugin.zip` plus a sidecar
+   `<Name>.sha256`.
+4. `index.json` rewriter walks every sidecar, finds the matching
+   entry by `endswith("<Name>.csplugin.zip")`, replaces `sha256` +
+   `version` + `downloadURL` (now points at this repo's
+   `v<version>` release tag), and bumps `updatedAt`.
+5. `git commit + git push` lands the new index.json on `main`.
+6. `gh release create v<version>` uploads all
+   `build/marketplace/*.csplugin.zip` files as release assets.
+
+The script refuses to run if `index.json` has uncommitted changes
+or if `v<version>` already exists on GitHub — fail-fast over
+silent overwrite.
+
 ## Repo layout
 
 ```
 claude-statistics-plugins/
 ├── README.md                ← this file
 ├── index.json               ← the catalog the host fetches
+├── project.yml              ← xcodegen plugin build manifest
+├── Package.swift / project.yml `packages.ClaudeStatisticsKit`
+│                             ← SDK SwiftPM dep → host repo's binaryTarget
+├── Sources/
+│   └── <X>Plugin/           ← per-plugin source + Info.plist
+├── scripts/
+│   ├── pack-csplugin.sh     ← bundle a single .csplugin into a zip
+│   └── release-plugins.sh   ← one-command release pipeline
 ├── submitting.md            ← third-party submission instructions
 └── icons/                   ← optional, served via raw.githubusercontent.com
     ├── claude-app.png
