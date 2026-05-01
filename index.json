@@ -1,7 +1,25 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-04-29T23:12:18Z",
+  "updatedAt": "2026-05-02T00:15:00Z",
   "entries": [
+    {
+      "id": "com.bigmodel.glm-subscription",
+      "name": "GLM Coding Plan",
+      "description": "GLM Coding Plan(智谱清言 / Z.ai)订阅适配器:配额查询、多 token 管理、可选同步到 cc CLI。",
+      "author": "Stone",
+      "homepage": "https://github.com/sj719045032/claude-statistics",
+      "category": "utility",
+      "version": "1.0.0",
+      "minHostAPIVersion": "0.2.0",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.1.0/GLMSubscriptionPlugin.csplugin.zip",
+      "sha256": "74df19cacf5501ac794cca0b197795b0cca17eeb2172a718b16a35aea31e1d6f",
+      "iconURL": null,
+      "permissions": [
+        "filesystemHome",
+        "network",
+        "keychain"
+      ]
+    },
     {
       "id": "com.google.gemini",
       "name": "Gemini",
