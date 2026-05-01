@@ -5,10 +5,14 @@
     {
       "id": "com.bigmodel.glm-subscription",
       "name": "GLM Coding Plan",
-      "description": "GLM Coding Plan(智谱清言 / Z.ai)订阅适配器:配额查询、多 token 管理、可选同步到 cc CLI。",
+      "description": "GLM Coding Plan (智谱 / Z.ai) subscription adapter: quota lookup, multi-token management, optional sync to cc CLI.",
+      "descriptionLocalized": {
+        "en": "GLM Coding Plan (智谱 / Z.ai) subscription adapter: quota lookup, multi-token management, optional sync to cc CLI.",
+        "zh-Hans": "GLM Coding Plan(智谱清言 / Z.ai)订阅适配器:配额查询、多 token 管理、可选同步到 cc CLI。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
-      "category": "utility",
+      "category": "subscription",
       "version": "1.0.0",
       "minHostAPIVersion": "0.2.0",
       "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.1.0/GLMSubscriptionPlugin.csplugin.zip",
