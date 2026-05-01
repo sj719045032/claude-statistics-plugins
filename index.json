@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-05-02T00:50:00Z",
+  "updatedAt": "2026-05-02T01:30:00Z",
   "entries": [
     {
       "id": "com.bigmodel.glm-subscription",
@@ -68,7 +68,7 @@
     },
     {
       "id": "com.anthropic.claudefordesktop",
-      "name": "Claude",
+      "name": "Claude App",
       "description": "Focus Claude.app sessions via deep-link.",
       "descriptionLocalized": {
         "en": "Focus Claude.app sessions via deep-link.",
@@ -76,7 +76,7 @@
       },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
-      "category": "chat-app",
+      "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
       "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/ClaudeAppPlugin.csplugin.zip",
@@ -86,7 +86,7 @@
     },
     {
       "id": "com.openai.codex.app",
-      "name": "Codex",
+      "name": "Codex App",
       "description": "Focus Codex.app sessions via deep-link.",
       "descriptionLocalized": {
         "en": "Focus Codex.app sessions via deep-link.",
@@ -94,7 +94,7 @@
       },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
-      "category": "chat-app",
+      "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
       "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/CodexAppPlugin.csplugin.zip",
@@ -186,7 +186,7 @@
       },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
-      "category": "editor-integration",
+      "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
       "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/VSCodePlugin.csplugin.zip",
@@ -204,7 +204,7 @@
       },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
-      "category": "editor-integration",
+      "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
       "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/CursorPlugin.csplugin.zip",
@@ -222,7 +222,7 @@
       },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
-      "category": "editor-integration",
+      "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
       "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/WindsurfPlugin.csplugin.zip",
@@ -240,7 +240,7 @@
       },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
-      "category": "editor-integration",
+      "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
       "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/TraePlugin.csplugin.zip",
@@ -258,7 +258,7 @@
       },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
-      "category": "editor-integration",
+      "category": "terminal",
       "version": "1.0.0",
       "minHostAPIVersion": "0.1.0",
       "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.0.0/ZedPlugin.csplugin.zip",

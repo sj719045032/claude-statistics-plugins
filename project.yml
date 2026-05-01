@@ -80,12 +80,12 @@ targets:
         CSPluginManifest:
           id: com.anthropic.claudefordesktop
           kind: terminal
-          displayName: Claude
+          displayName: Claude App
           version: 1.0.0
           minHostAPIVersion: 0.1.0
           permissions: []
           principalClass: ClaudeAppPlugin
-          category: chat-app
+          category: terminal
     settings:
       groups: [pluginBundle]
       base:
@@ -111,12 +111,12 @@ targets:
         CSPluginManifest:
           id: com.openai.codex.app
           kind: terminal
-          displayName: Codex
+          displayName: Codex App
           version: 1.0.0
           minHostAPIVersion: 0.1.0
           permissions: []
           principalClass: CodexAppPlugin
-          category: chat-app
+          category: terminal
     settings:
       groups: [pluginBundle]
       base:
@@ -181,7 +181,7 @@ targets:
           minHostAPIVersion: 0.1.0
           permissions: []
           principalClass: CursorPlugin
-          category: editor-integration
+          category: terminal
     settings:
       groups: [pluginBundle]
       base:
@@ -342,7 +342,7 @@ targets:
           minHostAPIVersion: 0.1.0
           permissions: []
           principalClass: TraePlugin
-          category: editor-integration
+          category: terminal
     settings:
       groups: [pluginBundle]
       base:
@@ -373,7 +373,7 @@ targets:
           minHostAPIVersion: 0.1.0
           permissions: []
           principalClass: VSCodePlugin
-          category: editor-integration
+          category: terminal
     settings:
       groups: [pluginBundle]
       base:
@@ -466,7 +466,7 @@ targets:
           minHostAPIVersion: 0.1.0
           permissions: []
           principalClass: WindsurfPlugin
-          category: editor-integration
+          category: terminal
     settings:
       groups: [pluginBundle]
       base:
@@ -497,7 +497,7 @@ targets:
           minHostAPIVersion: 0.1.0
           permissions: []
           principalClass: ZedPlugin
-          category: editor-integration
+          category: terminal
     settings:
       groups: [pluginBundle]
       base:
@@ -534,7 +534,7 @@ targets:
             - network
             - keychain
           principalClass: GLMSubscriptionPlugin
-          category: utility
+          category: subscription
     settings:
       groups: [pluginBundle]
       base:
