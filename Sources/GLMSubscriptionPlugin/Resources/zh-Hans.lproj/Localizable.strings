@@ -23,10 +23,13 @@
 "glm.section.syncToCLI" = "切换时同步到 CLI";
 "glm.section.syncToCLI.subtitle" = "关闭 = 仅应用内(cc 保留当前 token)";
 
+"glm.note.noActivePlan" = "未订阅 GLM Coding Plan — 请前往后台开通。";
+"glm.note.subscriptionNotActive" = "订阅未激活。";
+
 "glm.error.emptyToken" = "Token 不能为空";
+"glm.error.storage" = "Token 存储错误:%@";
 "glm.error.invalidBaseURL" = "Base URL 必须是合法的 http(s) URL";
 "glm.error.cannotRemoveSynced" = "同步自 CLI 的身份是只读的 — 修改 ~/.claude/settings.json 来更改";
-"glm.error.keychain" = "Keychain 错误 %d";
 "glm.error.missingBaseURL" = "GLM 适配器:未设置 ANTHROPIC_BASE_URL";
 "glm.error.missingAPIKey" = "GLM 适配器:未设置 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY";
 "glm.error.invalidBaseURL.adapter" = "GLM 适配器:ANTHROPIC_BASE_URL 格式错误";

@@ -23,10 +23,13 @@
 "glm.section.syncToCLI" = "Sync to CLI on switch";
 "glm.section.syncToCLI.subtitle" = "Off = app-only (cc keeps its current token)";
 
+"glm.note.noActivePlan" = "No active GLM Coding Plan — visit the dashboard to subscribe.";
+"glm.note.subscriptionNotActive" = "Subscription not active.";
+
 "glm.error.emptyToken" = "Token cannot be empty";
+"glm.error.storage" = "Token storage error: %@";
 "glm.error.invalidBaseURL" = "Base URL must be a valid http(s) URL";
 "glm.error.cannotRemoveSynced" = "The synced-from-CLI identity is read-only — edit ~/.claude/settings.json to change it";
-"glm.error.keychain" = "Keychain error %d";
 "glm.error.missingBaseURL" = "GLM adapter: ANTHROPIC_BASE_URL not set";
 "glm.error.missingAPIKey" = "GLM adapter: ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY not set";
 "glm.error.invalidBaseURL.adapter" = "GLM adapter: ANTHROPIC_BASE_URL is malformed";

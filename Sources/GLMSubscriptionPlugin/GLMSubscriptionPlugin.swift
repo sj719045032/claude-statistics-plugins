@@ -127,12 +127,25 @@ struct GLMSubscriptionAdapter: SubscriptionAdapter {
         }()
 
         if decoded.success == false {
+            // Translate well-known server error messages so the
+            // banner respects the user's app locale; fall back to
+            // the raw server msg only for unknown error shapes.
+            let serverMsg = decoded.msg ?? ""
+            let lowered = serverMsg.lowercased()
+            let note: String
+            if lowered.contains("coding plan") || serverMsg.contains("coding plan") {
+                note = GLMPluginLoc.key("glm.note.noActivePlan")
+            } else if serverMsg.isEmpty {
+                note = GLMPluginLoc.key("glm.note.subscriptionNotActive")
+            } else {
+                note = serverMsg
+            }
             return SubscriptionInfo(
                 planName: displayName,
                 quotas: [],
                 dashboardURL: dashboardURL,
                 nextResetAt: nil,
-                note: decoded.msg ?? "Subscription not active"
+                note: note
             )
         }
 
@@ -210,7 +223,7 @@ final class GLMSubscriptionAccountManager: SubscriptionAccountManager {
     static let kAdapterID = "glm"
     static let kSyncedAccountID = "synced-cli"
 
-    private let store = GLMKeychainStore()
+    private let store = GLMTokenStore()
     private let activeKeyDefault = "GLMSubscription.activeAccountID.v1"
 
     init() {
@@ -476,9 +489,10 @@ private struct GLMAddAccountSheet: View {
 
 // MARK: - Keychain store
 
-/// Token record stored in macOS Keychain. One generic-password entry
-/// per account, scoped to this plugin's keychain service so other
-/// providers never see GLM tokens.
+/// Token record stored as plain JSON. The cc CLI itself keeps the
+/// same token in `~/.claude/settings.json` env in plaintext, so
+/// double-wrapping it inside Keychain just produced an unlock prompt
+/// on every code-sign change without a meaningful security gain.
 private struct GLMTokenRecord: Codable {
     let id: String
     let label: String
@@ -486,94 +500,65 @@ private struct GLMTokenRecord: Codable {
     let baseURL: URL
 }
 
-private struct GLMKeychainStore {
-    private let service = "com.tinystone.ClaudeStatistics.glm-subscription"
-    private let indexAccount = "glm-token-index.v1"
+/// Plain-file token store at
+/// `~/Library/Application Support/Claude Statistics/glm-tokens.json`.
+/// File mode 0600 so other users on the machine can't read it; that
+/// matches the protection level the cc CLI's `settings.json` already
+/// gives the same token.
+private struct GLMTokenStore {
+    private var fileURL: URL {
+        let support = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first!
+        return support
+            .appendingPathComponent("Claude Statistics", isDirectory: true)
+            .appendingPathComponent("glm-tokens.json")
+    }
 
-    /// Write a new record. Existing record with the same id is
-    /// replaced. The plugin keeps a separate "index" generic-password
-    /// holding the JSON-encoded list of record ids so list iteration
-    /// doesn't depend on enumerating keychain attributes.
-    func insert(_ record: GLMTokenRecord) throws {
-        let data = try JSONEncoder().encode(record)
-        try keychainSet(account: record.id, data: data)
-        var ids = loadIndex()
-        if !ids.contains(record.id) {
-            ids.append(record.id)
-            try saveIndex(ids)
+    private struct StoreFile: Codable {
+        var records: [GLMTokenRecord]
+    }
+
+    private func load() -> StoreFile {
+        guard let data = try? Data(contentsOf: fileURL),
+              let decoded = try? JSONDecoder().decode(StoreFile.self, from: data) else {
+            return StoreFile(records: [])
         }
+        return decoded
+    }
+
+    private func save(_ store: StoreFile) throws {
+        let dir = fileURL.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let data = try JSONEncoder().encode(store)
+        try data.write(to: fileURL, options: .atomic)
+        // Restrict to user-only reads so other accounts on this Mac
+        // don't end up with the GLM token via a shared filesystem.
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: fileURL.path
+        )
+    }
+
+    func insert(_ record: GLMTokenRecord) throws {
+        var store = load()
+        store.records.removeAll { $0.id == record.id }
+        store.records.append(record)
+        try save(store)
     }
 
     func delete(id: String) throws {
-        try keychainDelete(account: id)
-        var ids = loadIndex()
-        ids.removeAll { $0 == id }
-        try saveIndex(ids)
+        var store = load()
+        store.records.removeAll { $0.id == id }
+        try save(store)
     }
 
     func record(id: String) -> GLMTokenRecord? {
-        guard let data = try? keychainGet(account: id) else { return nil }
-        return try? JSONDecoder().decode(GLMTokenRecord.self, from: data)
+        load().records.first { $0.id == id }
     }
 
     func allRecords() -> [GLMTokenRecord] {
-        loadIndex().compactMap { record(id: $0) }
-    }
-
-    private func loadIndex() -> [String] {
-        guard let data = try? keychainGet(account: indexAccount),
-              let ids = try? JSONDecoder().decode([String].self, from: data) else {
-            return []
-        }
-        return ids
-    }
-
-    private func saveIndex(_ ids: [String]) throws {
-        let data = try JSONEncoder().encode(ids)
-        try keychainSet(account: indexAccount, data: data)
-    }
-
-    private func keychainSet(account: String, data: Data) throws {
-        try? keychainDelete(account: account)
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
-        ]
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw GLMAccountError.keychain(status: status)
-        }
-    }
-
-    private func keychainGet(account: String) throws -> Data {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess, let data = item as? Data else {
-            throw GLMAccountError.keychain(status: status)
-        }
-        return data
-    }
-
-    private func keychainDelete(account: String) throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw GLMAccountError.keychain(status: status)
-        }
+        load().records
     }
 }
 
@@ -685,14 +670,14 @@ enum GLMAccountError: LocalizedError {
     case emptyToken
     case invalidBaseURL
     case cannotRemoveSynced
-    case keychain(status: OSStatus)
+    case storage(message: String)
 
     var errorDescription: String? {
         switch self {
         case .emptyToken:        return GLMPluginLoc.key("glm.error.emptyToken")
         case .invalidBaseURL:    return GLMPluginLoc.key("glm.error.invalidBaseURL")
         case .cannotRemoveSynced:return GLMPluginLoc.key("glm.error.cannotRemoveSynced")
-        case .keychain(let s):   return GLMPluginLoc.format("glm.error.keychain", Int(s))
+        case .storage(let m):    return GLMPluginLoc.format("glm.error.storage", m)
         }
     }
 }

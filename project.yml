@@ -527,12 +527,11 @@ targets:
           id: com.bigmodel.glm-subscription
           kind: subscriptionExtension
           displayName: GLM Coding Plan
-          version: 1.0.0
+          version: 1.0.1
           minHostAPIVersion: 0.2.0
           permissions:
             - filesystemHome
             - network
-            - keychain
           principalClass: GLMSubscriptionPlugin
           category: subscription
     settings:
