@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-05-02T00:15:00Z",
+  "updatedAt": "2026-05-02T00:50:00Z",
   "entries": [
     {
       "id": "com.bigmodel.glm-subscription",
@@ -27,7 +27,11 @@
     {
       "id": "com.google.gemini",
       "name": "Gemini",
-      "description": "Google Gemini CLI 适配器：会话扫描、转录解析、用量、定价、账户切换、状态栏与 hook 集成。",
+      "description": "Google Gemini CLI adapter: session scanning, transcript parsing, usage, pricing, account switching, status line and hook integration.",
+      "descriptionLocalized": {
+        "en": "Google Gemini CLI adapter: session scanning, transcript parsing, usage, pricing, account switching, status line and hook integration.",
+        "zh-Hans": "Google Gemini CLI 适配器:会话扫描、转录解析、用量、定价、账号切换、状态栏与 hook 集成。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "provider",
@@ -44,7 +48,11 @@
     {
       "id": "com.openai.codex",
       "name": "Codex",
-      "description": "OpenAI Codex CLI 适配器：会话扫描、转录解析、用量、定价、账户切换、状态栏与 hook 集成。",
+      "description": "OpenAI Codex CLI adapter: session scanning, transcript parsing, usage, pricing, account switching, status line and hook integration.",
+      "descriptionLocalized": {
+        "en": "OpenAI Codex CLI adapter: session scanning, transcript parsing, usage, pricing, account switching, status line and hook integration.",
+        "zh-Hans": "OpenAI Codex CLI 适配器:会话扫描、转录解析、用量、定价、账号切换、状态栏与 hook 集成。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "provider",
@@ -62,6 +70,10 @@
       "id": "com.anthropic.claudefordesktop",
       "name": "Claude",
       "description": "Focus Claude.app sessions via deep-link.",
+      "descriptionLocalized": {
+        "en": "Focus Claude.app sessions via deep-link.",
+        "zh-Hans": "通过 deep-link 聚焦 Claude.app 会话。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "chat-app",
@@ -76,6 +88,10 @@
       "id": "com.openai.codex.app",
       "name": "Codex",
       "description": "Focus Codex.app sessions via deep-link.",
+      "descriptionLocalized": {
+        "en": "Focus Codex.app sessions via deep-link.",
+        "zh-Hans": "通过 deep-link 聚焦 Codex.app 会话。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "chat-app",
@@ -90,6 +106,10 @@
       "id": "org.alacritty",
       "name": "Alacritty",
       "description": "Alacritty terminal focus return + new-session launcher.",
+      "descriptionLocalized": {
+        "en": "Alacritty terminal focus return + new-session launcher.",
+        "zh-Hans": "Alacritty 终端聚焦回归与新会话启动。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "terminal",
@@ -104,6 +124,10 @@
       "id": "net.kovidgoyal.kitty",
       "name": "Kitty",
       "description": "Kitty terminal focus return + new-session launcher.",
+      "descriptionLocalized": {
+        "en": "Kitty terminal focus return + new-session launcher.",
+        "zh-Hans": "Kitty 终端聚焦回归与新会话启动。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "terminal",
@@ -120,6 +144,10 @@
       "id": "dev.warp.Warp-Stable",
       "name": "Warp",
       "description": "Warp terminal focus return + new-session launcher.",
+      "descriptionLocalized": {
+        "en": "Warp terminal focus return + new-session launcher.",
+        "zh-Hans": "Warp 终端聚焦回归与新会话启动。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "terminal",
@@ -134,6 +162,10 @@
       "id": "com.github.wez.wezterm",
       "name": "WezTerm",
       "description": "WezTerm focus return + new-session launcher.",
+      "descriptionLocalized": {
+        "en": "WezTerm focus return + new-session launcher.",
+        "zh-Hans": "WezTerm 终端聚焦回归与新会话启动。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "terminal",
@@ -148,6 +180,10 @@
       "id": "com.microsoft.VSCode",
       "name": "VSCode",
       "description": "Visual Studio Code focus return via deep-link.",
+      "descriptionLocalized": {
+        "en": "Visual Studio Code focus return via deep-link.",
+        "zh-Hans": "通过 deep-link 聚焦 Visual Studio Code。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "editor-integration",
@@ -162,6 +198,10 @@
       "id": "com.todesktop.230313mzl4w4u92",
       "name": "Cursor",
       "description": "Cursor editor focus return via deep-link.",
+      "descriptionLocalized": {
+        "en": "Cursor editor focus return via deep-link.",
+        "zh-Hans": "通过 deep-link 聚焦 Cursor 编辑器。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "editor-integration",
@@ -176,6 +216,10 @@
       "id": "com.exafunction.windsurf",
       "name": "Windsurf",
       "description": "Windsurf editor focus return via deep-link.",
+      "descriptionLocalized": {
+        "en": "Windsurf editor focus return via deep-link.",
+        "zh-Hans": "通过 deep-link 聚焦 Windsurf 编辑器。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "editor-integration",
@@ -190,6 +234,10 @@
       "id": "com.trae.app",
       "name": "Trae",
       "description": "Trae editor focus return via deep-link.",
+      "descriptionLocalized": {
+        "en": "Trae editor focus return via deep-link.",
+        "zh-Hans": "通过 deep-link 聚焦 Trae 编辑器。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "editor-integration",
@@ -204,6 +252,10 @@
       "id": "dev.zed.Zed",
       "name": "Zed",
       "description": "Zed editor focus return via deep-link.",
+      "descriptionLocalized": {
+        "en": "Zed editor focus return via deep-link.",
+        "zh-Hans": "通过 deep-link 聚焦 Zed 编辑器。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "editor-integration",
@@ -218,6 +270,10 @@
       "id": "com.googlecode.iterm2",
       "name": "iTerm2",
       "description": "iTerm2 terminal focus return + new-session launcher.",
+      "descriptionLocalized": {
+        "en": "iTerm2 terminal focus return + new-session launcher.",
+        "zh-Hans": "iTerm2 终端聚焦回归与新会话启动。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "terminal",
@@ -234,6 +290,10 @@
       "id": "com.mitchellh.ghostty",
       "name": "Ghostty",
       "description": "Ghostty terminal focus return + new-session launcher.",
+      "descriptionLocalized": {
+        "en": "Ghostty terminal focus return + new-session launcher.",
+        "zh-Hans": "Ghostty 终端聚焦回归与新会话启动。"
+      },
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "terminal",
