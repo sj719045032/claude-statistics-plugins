@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>GLMSubscriptionPlugin</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.tinystone.GLMSubscriptionPlugin</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>GLMSubscriptionPlugin</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>zh-Hans</string>
+	</array>
+	<key>CSPluginManifest</key>
+	<dict>
+		<key>category</key>
+		<string>utility</string>
+		<key>displayName</key>
+		<string>GLM Coding Plan</string>
+		<key>id</key>
+		<string>com.bigmodel.glm-subscription</string>
+		<key>kind</key>
+		<string>subscriptionExtension</string>
+		<key>minHostAPIVersion</key>
+		<string>0.2.0</string>
+		<key>permissions</key>
+		<array>
+			<string>filesystemHome</string>
+			<string>network</string>
+			<string>keychain</string>
+		</array>
+		<key>principalClass</key>
+		<string>GLMSubscriptionPlugin</string>
+		<key>version</key>
+		<string>1.0.0</string>
+	</dict>
+	<key>NSPrincipalClass</key>
+	<string>GLMSubscriptionPlugin</string>
+</dict>
+</plist>

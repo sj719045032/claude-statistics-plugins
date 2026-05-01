@@ -503,3 +503,40 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.ZedPlugin
         PRODUCT_NAME: ZedPlugin
+
+  GLMSubscriptionPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/GLMSubscriptionPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/GLMSubscriptionPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.GLMSubscriptionPlugin
+        CFBundleName: GLMSubscriptionPlugin
+        CFBundleExecutable: GLMSubscriptionPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: GLMSubscriptionPlugin
+        CFBundleLocalizations:
+          - en
+          - zh-Hans
+        CSPluginManifest:
+          id: com.bigmodel.glm-subscription
+          kind: subscriptionExtension
+          displayName: GLM Coding Plan
+          version: 1.0.0
+          minHostAPIVersion: 0.2.0
+          permissions:
+            - filesystemHome
+            - network
+            - keychain
+          principalClass: GLMSubscriptionPlugin
+          category: utility
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.GLMSubscriptionPlugin
+        PRODUCT_NAME: GLMSubscriptionPlugin
