@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-05-02T01:30:00Z",
+  "updatedAt": "2026-05-02T02:30:00Z",
   "entries": [
     {
       "id": "com.bigmodel.glm-subscription",
@@ -13,15 +13,14 @@
       "author": "Stone",
       "homepage": "https://github.com/sj719045032/claude-statistics",
       "category": "subscription",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "minHostAPIVersion": "0.2.0",
-      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.1.0/GLMSubscriptionPlugin.csplugin.zip",
-      "sha256": "74df19cacf5501ac794cca0b197795b0cca17eeb2172a718b16a35aea31e1d6f",
+      "downloadURL": "https://github.com/sj719045032/claude-statistics-plugins/releases/download/v1.1.1/GLMSubscriptionPlugin.csplugin.zip",
+      "sha256": "a3680c69f9477a8ae5a5d2f3ccc0654f12aa5303abe43ab9322ff581bf3e23be",
       "iconURL": null,
       "permissions": [
         "filesystemHome",
-        "network",
-        "keychain"
+        "network"
       ]
     },
     {
