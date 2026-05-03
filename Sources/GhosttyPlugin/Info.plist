@@ -29,7 +29,7 @@
 		<key>kind</key>
 		<string>terminal</string>
 		<key>minHostAPIVersion</key>
-		<string>0.1.0</string>
+		<string>0.3.0</string>
 		<key>permissions</key>
 		<array>
 			<string>appleScript</string>
