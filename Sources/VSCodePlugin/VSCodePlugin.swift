@@ -18,16 +18,7 @@ import Foundation
 /// stays a thin descriptor + factory wrapper.
 @objc(VSCodePlugin)
 public final class VSCodePlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "com.microsoft.VSCode",
-        kind: .terminal,
-        displayName: "VSCode",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "VSCodePlugin",
-        category: PluginCatalogCategory.editorIntegration
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: VSCodePlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "com.microsoft.VSCode",

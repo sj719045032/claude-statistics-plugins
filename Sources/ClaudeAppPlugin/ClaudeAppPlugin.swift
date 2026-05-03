@@ -15,15 +15,7 @@ import Foundation
 /// an exact project.
 @objc(ClaudeAppPlugin)
 public final class ClaudeAppPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "com.anthropic.claudefordesktop",
-        kind: .terminal,
-        displayName: "Claude",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "ClaudeAppPlugin"
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: ClaudeAppPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "com.anthropic.claudefordesktop",

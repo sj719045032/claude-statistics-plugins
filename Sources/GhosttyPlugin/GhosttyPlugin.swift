@@ -15,15 +15,7 @@ import Foundation
 /// (window/tab/project-path matching) is unchanged.
 @objc(GhosttyPlugin)
 public final class GhosttyPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "com.mitchellh.ghostty",
-        kind: .terminal,
-        displayName: "Ghostty",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [.appleScript],
-        principalClass: "GhosttyPlugin"
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: GhosttyPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "Ghostty",

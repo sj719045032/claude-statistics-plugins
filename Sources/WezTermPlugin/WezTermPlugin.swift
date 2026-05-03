@@ -12,15 +12,7 @@ import Foundation
 /// pointing at the running mux's `gui-sock-<pid>`).
 @objc(WezTermPlugin)
 public final class WezTermPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "com.github.wez.wezterm",
-        kind: .terminal,
-        displayName: "WezTerm",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "WezTermPlugin"
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: WezTermPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "WezTerm",

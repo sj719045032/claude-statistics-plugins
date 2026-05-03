@@ -11,15 +11,7 @@ import Foundation
 /// struct; only the dispatch layer is inlined.
 @objc(ITermPlugin)
 public final class ITermPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "com.googlecode.iterm2",
-        kind: .terminal,
-        displayName: "iTerm2",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [.appleScript],
-        principalClass: "ITermPlugin"
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: ITermPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "iTerm2",

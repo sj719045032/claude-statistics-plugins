@@ -6,16 +6,7 @@ import Foundation
 /// See VSCodePlugin doc-comment for the per-vendor rationale.
 @objc(CursorPlugin)
 public final class CursorPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "com.todesktop.230313mzl4w4u92",
-        kind: .terminal,
-        displayName: "Cursor",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "CursorPlugin",
-        category: PluginCatalogCategory.editorIntegration
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: CursorPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "com.todesktop.230313mzl4w4u92",

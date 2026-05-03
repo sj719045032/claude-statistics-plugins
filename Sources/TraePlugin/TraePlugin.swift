@@ -7,16 +7,7 @@ import Foundation
 /// focus and project-open all resolve through the installed variant.
 @objc(TraePlugin)
 public final class TraePlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "com.trae.app",
-        kind: .terminal,
-        displayName: "Trae",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "TraePlugin",
-        category: PluginCatalogCategory.editorIntegration
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: TraePlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "com.trae.app",

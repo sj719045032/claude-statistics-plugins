@@ -5,16 +5,7 @@ import Foundation
 /// Zed editor plugin.
 @objc(ZedPlugin)
 public final class ZedPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "dev.zed.Zed",
-        kind: .terminal,
-        displayName: "Zed",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "ZedPlugin",
-        category: PluginCatalogCategory.editorIntegration
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: ZedPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "dev.zed.Zed",

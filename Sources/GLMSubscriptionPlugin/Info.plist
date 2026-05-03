@@ -43,7 +43,7 @@
 		<key>principalClass</key>
 		<string>GLMSubscriptionPlugin</string>
 		<key>version</key>
-		<string>1.1.0</string>
+		<string>1.0.1</string>
 	</dict>
 	<key>NSPrincipalClass</key>
 	<string>GLMSubscriptionPlugin</string>

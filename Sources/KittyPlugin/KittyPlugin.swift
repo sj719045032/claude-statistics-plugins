@@ -12,15 +12,7 @@ import Foundation
 /// idempotently and prompts the user to restart Kitty afterwards.
 @objc(KittyPlugin)
 public final class KittyPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "net.kovidgoyal.kitty",
-        kind: .terminal,
-        displayName: "Kitty",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [.filesystemHome],
-        principalClass: "KittyPlugin"
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: KittyPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "Kitty",

@@ -38,17 +38,7 @@ private enum GLMPluginLoc {
 /// types, so no host code has to change.
 @objc(GLMSubscriptionPlugin)
 final class GLMSubscriptionPlugin: NSObject, SubscriptionExtensionPlugin {
-    static let manifest = PluginManifest(
-        id: "com.bigmodel.glm-subscription",
-        kind: .subscriptionExtension,
-        displayName: "GLM Coding Plan",
-        version: SemVer(major: 1, minor: 1, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [.filesystemHome, .network],
-        principalClass: "GLMSubscriptionPlugin",
-        iconAsset: nil,
-        category: PluginCatalogCategory.utility
-    )
+    static let manifest = PluginManifest(bundle: Bundle(for: GLMSubscriptionPlugin.self))!
 
     let targetProviderID: String = "claude"
 

@@ -12,15 +12,7 @@ import Foundation
 /// the in-binary capability used before extraction).
 @objc(AlacrittyPlugin)
 public final class AlacrittyPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "org.alacritty",
-        kind: .terminal,
-        displayName: "Alacritty",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "AlacrittyPlugin"
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: AlacrittyPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "Alacritty",

@@ -16,17 +16,7 @@ import SwiftUI
 @MainActor
 @objc(CodexPlugin)
 public final class CodexPlugin: NSObject, ProviderPlugin, ProviderAccountUIProviding, ProviderHookNormalizing {
-    public static let manifest = PluginManifest(
-        id: "com.openai.codex",
-        kind: .provider,
-        displayName: "Codex",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [.filesystemHome, .network],
-        principalClass: "CodexPlugin",
-        iconAsset: "CodexProviderIcon",
-        category: PluginCatalogCategory.provider
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: CodexPlugin.self))!
 
     /// Plugin-owned account manager so the host's account-card popover
     /// and any future plugin-local UI share state. Created once at

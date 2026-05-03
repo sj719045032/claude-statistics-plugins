@@ -12,15 +12,7 @@ import Foundation
 /// `PluginBackedTerminalCapability`).
 @objc(WarpPlugin)
 public final class WarpPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "dev.warp.Warp-Stable",
-        kind: .terminal,
-        displayName: "Warp",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "WarpPlugin"
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: WarpPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "Warp",

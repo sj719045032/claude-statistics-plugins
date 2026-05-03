@@ -19,15 +19,7 @@ public final class CodexAppPlugin: NSObject, TerminalPlugin {
     /// instances into one entry. The `descriptor.bundleIdentifiers`
     /// still carry the real macOS bundle id so process tree walking
     /// and focus dispatch resolve correctly against the on-disk app.
-    public static let manifest = PluginManifest(
-        id: "com.openai.codex.app",
-        kind: .terminal,
-        displayName: "Codex",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "CodexAppPlugin"
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: CodexAppPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "com.openai.codex.app",

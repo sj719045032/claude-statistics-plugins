@@ -5,16 +5,7 @@ import Foundation
 /// Windsurf editor plugin (Codeium's VSCode fork).
 @objc(WindsurfPlugin)
 public final class WindsurfPlugin: NSObject, TerminalPlugin {
-    public static let manifest = PluginManifest(
-        id: "com.exafunction.windsurf",
-        kind: .terminal,
-        displayName: "Windsurf",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [],
-        principalClass: "WindsurfPlugin",
-        category: PluginCatalogCategory.editorIntegration
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: WindsurfPlugin.self))!
 
     public let descriptor = TerminalDescriptor(
         id: "com.exafunction.windsurf",

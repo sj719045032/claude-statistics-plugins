@@ -15,17 +15,7 @@ import SwiftUI
 @MainActor
 @objc(GeminiPlugin)
 public final class GeminiPlugin: NSObject, ProviderPlugin, ProviderAccountUIProviding, ProviderHookNormalizing {
-    public static let manifest = PluginManifest(
-        id: "com.google.gemini",
-        kind: .provider,
-        displayName: "Gemini",
-        version: SemVer(major: 1, minor: 0, patch: 0),
-        minHostAPIVersion: SDKInfo.apiVersion,
-        permissions: [.filesystemHome, .network],
-        principalClass: "GeminiPlugin",
-        iconAsset: "GeminiProviderIcon",
-        category: PluginCatalogCategory.provider
-    )
+    public static let manifest = PluginManifest(bundle: Bundle(for: GeminiPlugin.self))!
 
     /// Plugin-owned account manager so the host's account-card popover
     /// and any future plugin-local UI share state. Created once at
