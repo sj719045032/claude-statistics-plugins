@@ -26,6 +26,10 @@
 "glm.note.noActivePlan" = "No active GLM Coding Plan — visit the dashboard to subscribe.";
 "glm.note.subscriptionNotActive" = "Subscription not active.";
 
+"glm.window.5hour" = "5 Hour";
+"glm.window.7day" = "7 Day";
+"glm.window.30day" = "30 Day";
+
 "glm.error.emptyToken" = "Token cannot be empty";
 "glm.error.storage" = "Token storage error: %@";
 "glm.error.invalidBaseURL" = "Base URL must be a valid http(s) URL";

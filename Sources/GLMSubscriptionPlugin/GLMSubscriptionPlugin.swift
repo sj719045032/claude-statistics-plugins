@@ -42,7 +42,7 @@ final class GLMSubscriptionPlugin: NSObject, SubscriptionExtensionPlugin {
         id: "com.bigmodel.glm-subscription",
         kind: .subscriptionExtension,
         displayName: "GLM Coding Plan",
-        version: SemVer(major: 1, minor: 0, patch: 0),
+        version: SemVer(major: 1, minor: 0, patch: 1),
         minHostAPIVersion: SDKInfo.apiVersion,
         permissions: [.filesystemHome, .network],
         principalClass: "GLMSubscriptionPlugin",
@@ -56,6 +56,72 @@ final class GLMSubscriptionPlugin: NSObject, SubscriptionExtensionPlugin {
     func makeSubscriptionAdapters() -> [any SubscriptionAdapter] {
         [GLMSubscriptionAdapter()]
     }
+
+    /// Per-model pricing seeds for the GLM API.
+    ///
+    /// **Source:** Z.ai international pricing page
+    /// `https://docs.z.ai/guides/overview/pricing` — values are in
+    /// **USD per 1M tokens**. We deliberately use the Z.ai (USD)
+    /// numbers rather than bigmodel.cn (RMB) for two reasons:
+    ///
+    /// 1. The host renders all cost figures in USD (`$XX.XX`) to
+    ///    match Anthropic's pricing convention; mixing currencies
+    ///    in one table without a currency tag would mislabel
+    ///    bigmodel.cn rows that are actually RMB.
+    /// 2. Coding Plan users pay a flat subscription, not per-token,
+    ///    so these figures are notional ("what this would have
+    ///    cost on PAYG") — the same convention Claude Pro/Max
+    ///    users see. Relative cost-per-model is what's actionable;
+    ///    the absolute USD figure is informational.
+    ///
+    /// `cacheWrite5m` / `cacheWrite1h` reuse `input` because GLM's
+    /// API has no Anthropic-style cache-write tiers; the host's
+    /// cost estimator falls back gracefully when transcript rows
+    /// don't carry those markers (see `ModelPricingRates`'s
+    /// docstring).
+    var builtinPricingModels: [String: ModelPricingRates] {
+        Self.glmPricing
+    }
+
+    private static let glmPricing: [String: ModelPricingRates] = {
+        func rate(_ input: Double, _ output: Double, _ cacheRead: Double) -> ModelPricingRates {
+            ModelPricingRates(
+                input: input,
+                output: output,
+                cacheWrite5m: input,
+                cacheWrite1h: input,
+                cacheRead: cacheRead
+            )
+        }
+        return [
+            // GLM 5.x flagship tier
+            "glm-5.1":            rate(1.4, 4.4, 0.26),
+            "glm-5":              rate(1.0, 3.2, 0.20),
+            "glm-5-turbo":        rate(1.2, 4.0, 0.24),
+            // GLM 4.7 — same pricing tier as 4.6
+            "glm-4.7":            rate(0.6, 2.2, 0.11),
+            "glm-4.7-flashx":     rate(0.07, 0.4, 0.01),
+            "glm-4.7-flash":      rate(0.0, 0.0, 0.0),
+            // GLM 4.6 — most common Coding Plan default
+            "glm-4.6":            rate(0.6, 2.2, 0.11),
+            // GLM 4.5 family
+            "glm-4.5":            rate(0.6, 2.2, 0.11),
+            "glm-4.5-x":          rate(2.2, 8.9, 0.45),
+            "glm-4.5-air":        rate(0.2, 1.1, 0.03),
+            "glm-4.5-airx":       rate(1.1, 4.5, 0.22),
+            "glm-4.5-flash":      rate(0.0, 0.0, 0.0),
+            // GLM 4 legacy
+            "glm-4-32b-0414-128k": rate(0.1, 0.1, 0.0),
+            // Vision variants — included for completeness; rarely
+            // appear in Claude Code transcripts but keep cost
+            // rendering honest if they ever do.
+            "glm-4.5v":           rate(0.6, 1.8, 0.11),
+            "glm-4.6v":           rate(0.3, 0.9, 0.05),
+            "glm-4.6v-flashx":    rate(0.04, 0.4, 0.004),
+            "glm-4.6v-flash":     rate(0.0, 0.0, 0.0),
+            "glm-5v-turbo":       rate(1.2, 4.0, 0.24)
+        ]
+    }()
 
     override init() { super.init() }
 }
@@ -122,8 +188,13 @@ struct GLMSubscriptionAdapter: SubscriptionAdapter {
         let limits = decoded.data?.limits ?? []
 
         let dashboardURL: URL? = {
-            if host.contains("z.ai") { return URL(string: "https://z.ai/manage-apikey/usage") }
-            return URL(string: "https://\(host)")
+            // Z.ai's subscription-management page (cross-checked
+            // with upstream PR sj719045032/claude-statistics#1).
+            if host.contains("z.ai") { return URL(string: "https://z.ai/manage-apikey/subscription") }
+            // Coding-plan usage page on bigmodel — works for both
+            // `open.bigmodel.cn` and `dev.bigmodel.cn` since the
+            // dashboard lives on the bare apex.
+            return URL(string: "https://bigmodel.cn/coding-plan/personal/usage")
         }()
 
         if decoded.success == false {
@@ -167,7 +238,8 @@ struct GLMSubscriptionAdapter: SubscriptionAdapter {
                 used: SubscriptionAmount(value: Double(used), unit: kind.unit),
                 limit: computedLimit.map { SubscriptionAmount(value: Double($0), unit: kind.unit) },
                 percentage: item.percentage,
-                resetAt: resetAt
+                resetAt: resetAt,
+                windowDuration: kind.windowDuration
             )
         }
 
@@ -175,9 +247,40 @@ struct GLMSubscriptionAdapter: SubscriptionAdapter {
             planName: displayName,
             quotas: quotas,
             dashboardURL: dashboardURL,
-            nextResetAt: quotas.compactMap(\.resetAt).min()
+            nextResetAt: quotas.compactMap(\.resetAt).min(),
+            localTrendWindows: Self.localTrendWindows
         )
     }
+
+    /// Trend chart definitions handed to the host alongside the
+    /// quota progress bars. Each window's chart uses local JSONL
+    /// rows tagged `glm-*` (`modelFamily: "glm"`) and ends on the
+    /// matching upstream quota's reset time
+    /// (`subscriptionQuotaID` → `quotas[id].resetAt`).
+    static let localTrendWindows: [ProviderUsageTrendPresentation] = [
+        ProviderUsageTrendPresentation(
+            id: "glm-5h",
+            titleLocalizationKey: "usage.5hour",
+            tabLabel: "5h",
+            durationValue: -5,
+            durationComponent: .hour,
+            granularity: .fiveMinute,
+            anchor: .quotaReset,
+            modelFamily: "glm",
+            subscriptionQuotaID: "5h"
+        ),
+        ProviderUsageTrendPresentation(
+            id: "glm-7d",
+            titleLocalizationKey: "usage.7day",
+            tabLabel: "7d",
+            durationValue: -7,
+            durationComponent: .day,
+            granularity: .hour,
+            anchor: .quotaReset,
+            modelFamily: "glm",
+            subscriptionQuotaID: "weekly"
+        )
+    ]
 
     static func mockedSubscriptionInfo() -> SubscriptionInfo {
         let now = Date()
@@ -185,22 +288,33 @@ struct GLMSubscriptionAdapter: SubscriptionAdapter {
             planName: "GLM Coding Plan (Mock)",
             quotas: [
                 SubscriptionQuotaWindow(
-                    id: "5h", title: "5h tokens",
+                    id: "5h", title: GLMPluginLoc.key("glm.window.5hour"),
                     used: SubscriptionAmount(value: 3_240_000, unit: .tokens),
                     limit: SubscriptionAmount(value: 5_000_000, unit: .tokens),
                     percentage: 64.8,
-                    resetAt: now.addingTimeInterval(2 * 3600 + 47 * 60)
+                    resetAt: now.addingTimeInterval(2 * 3600 + 47 * 60),
+                    windowDuration: 5 * 3600
                 ),
                 SubscriptionQuotaWindow(
-                    id: "monthly", title: "Monthly calls",
+                    id: "weekly", title: GLMPluginLoc.key("glm.window.7day"),
+                    used: SubscriptionAmount(value: 12_000_000, unit: .tokens),
+                    limit: SubscriptionAmount(value: 50_000_000, unit: .tokens),
+                    percentage: 24.0,
+                    resetAt: now.addingTimeInterval(6 * 86400 + 9 * 3600),
+                    windowDuration: 7 * 86400
+                ),
+                SubscriptionQuotaWindow(
+                    id: "monthly", title: GLMPluginLoc.key("glm.window.30day"),
                     used: SubscriptionAmount(value: 287, unit: .requests),
                     limit: SubscriptionAmount(value: 1000, unit: .requests),
                     percentage: 28.7,
-                    resetAt: now.addingTimeInterval(15 * 86400)
+                    resetAt: now.addingTimeInterval(15 * 86400),
+                    windowDuration: 30 * 86400
                 )
             ],
-            dashboardURL: URL(string: "https://bigmodel.cn/usercenter"),
-            nextResetAt: now.addingTimeInterval(2 * 3600 + 47 * 60)
+            dashboardURL: URL(string: "https://bigmodel.cn/coding-plan/personal/usage"),
+            nextResetAt: now.addingTimeInterval(2 * 3600 + 47 * 60),
+            localTrendWindows: Self.localTrendWindows
         )
     }
 }
@@ -684,39 +798,76 @@ enum GLMAccountError: LocalizedError {
 
 // MARK: - Window classification
 
+/// Classifies a `(type, unit)` pair from GLM's
+/// `/api/monitor/usage/quota/limit` response into a known window
+/// shape. Encodings observed in the wild (cross-checked against
+/// upstream PR sj719045032/claude-statistics#1, which lists
+/// firsthand experimentation):
+///
+/// - `(TOKENS_LIMIT, 3)` → 5-hour token bucket
+/// - `(TOKENS_LIMIT, 6)` → weekly token bucket
+/// - `(TIME_LIMIT,   5)` → monthly search-call bucket (the GLM
+///   plan's web-search count limit, NOT general API calls)
+///
+/// Anything we haven't seen lands in `.unknown`, which keeps the
+/// raw API codes in the title so the operator (or a future log
+/// scrape) can spot new shapes without us silently mislabeling.
 private enum QuotaWindowKind {
     case fiveHourTokens
-    case monthlyCalls
     case weeklyTokens
+    case monthlySearch
+    case unknown(type: String?, unit: Int?)
 
     init(type: String?, unit: Int?) {
         switch (type, unit) {
         case ("TOKENS_LIMIT", 3): self = .fiveHourTokens
-        case ("TIME_LIMIT", 5):   self = .monthlyCalls
-        default:                  self = .weeklyTokens
+        case ("TOKENS_LIMIT", 6): self = .weeklyTokens
+        case ("TIME_LIMIT", 5):   self = .monthlySearch
+        default:                  self = .unknown(type: type, unit: unit)
         }
     }
 
     var id: String {
         switch self {
-        case .fiveHourTokens: return "5h"
-        case .monthlyCalls:   return "monthly"
-        case .weeklyTokens:   return "weekly"
+        case .fiveHourTokens:               return "5h"
+        case .weeklyTokens:                 return "weekly"
+        case .monthlySearch:                return "monthly"
+        case .unknown(let type, let unit):
+            return "unknown-\(type ?? "nil")-\(unit.map(String.init) ?? "nil")"
         }
     }
 
     var title: String {
         switch self {
-        case .fiveHourTokens: return "5h tokens"
-        case .monthlyCalls:   return "Monthly calls"
-        case .weeklyTokens:   return "Weekly tokens"
+        case .fiveHourTokens:               return GLMPluginLoc.key("glm.window.5hour")
+        case .weeklyTokens:                 return GLMPluginLoc.key("glm.window.7day")
+        case .monthlySearch:                return GLMPluginLoc.key("glm.window.30day")
+        case .unknown(let type, let unit):
+            return "\(type ?? "?") · unit \(unit.map(String.init) ?? "?")"
         }
     }
 
     var unit: SubscriptionUnit {
         switch self {
-        case .monthlyCalls: return .requests
-        default:            return .tokens
+        case .monthlySearch: return .requests
+        default:             return .tokens
+        }
+    }
+
+    /// Window length in seconds, used by the host's
+    /// `LinearExhaustEstimator` to render "exhausts in …" next to
+    /// the title. Returns `nil` for `.unknown` so a future quota
+    /// shape doesn't get an estimate built on a guessed duration.
+    /// The 30-day approximation for monthly is acceptable because
+    /// the upstream `nextResetTime` already reflects the true reset
+    /// date — the duration is only used as the elapsed-window
+    /// denominator.
+    var windowDuration: TimeInterval? {
+        switch self {
+        case .fiveHourTokens: return 5 * 3600
+        case .weeklyTokens:   return 7 * 86400
+        case .monthlySearch:  return 30 * 86400
+        case .unknown:        return nil
         }
     }
 }

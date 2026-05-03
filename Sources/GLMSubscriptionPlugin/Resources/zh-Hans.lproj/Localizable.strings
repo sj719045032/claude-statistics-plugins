@@ -26,6 +26,10 @@
 "glm.note.noActivePlan" = "未订阅 GLM Coding Plan — 请前往后台开通。";
 "glm.note.subscriptionNotActive" = "订阅未激活。";
 
+"glm.window.5hour" = "5 小时";
+"glm.window.7day" = "7 天";
+"glm.window.30day" = "30 天";
+
 "glm.error.emptyToken" = "Token 不能为空";
 "glm.error.storage" = "Token 存储错误:%@";
 "glm.error.invalidBaseURL" = "Base URL 必须是合法的 http(s) URL";
