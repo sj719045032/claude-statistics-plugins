@@ -130,11 +130,6 @@ user**, not the protocol it implements:
 | `share-card` | You contribute share-card roles, scoring, or visual themes. |
 | `utility` | Anything else. Also the fallback the UI uses for unknown values. |
 
-Legacy values (`chat-app`, `editor-integration`, `vendor`) are still
-accepted by the loader and aliased into the buckets above
-(`terminal` for the first two, `provider` for `vendor`). New
-submissions should use the canonical names.
-
 Custom strings outside this set are accepted by the loader but the
 UI groups them under **Utility**. If you think a new bucket is
 warranted, propose it in your PR description and we can add it to
