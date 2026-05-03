@@ -17,18 +17,24 @@ You should already have:
 
 - A working `<X>Plugin.swift` that conforms to one of the SDK plugin
   protocols (`ProviderPlugin`, `TerminalPlugin`, `ShareRolePlugin`,
-  `ShareCardThemePlugin`, or a combination via
-  `PluginKind.both`). See the existing builtins in
-  `Plugins/Sources/<X>Plugin/<X>Plugin.swift` of the host repo as
-  templates.
-- A `static let manifest = PluginManifest(...)` in your plugin type
-  with: stable reverse-DNS `id`, a `displayName`, a `version`, the
-  `minHostAPIVersion` your code actually uses (start at the host's
-  `SDKInfo.apiVersion`), the `permissions` you declare, and the
-  `principalClass` matching your Swift class name. Optionally a
-  `category` (one of the six listed below).
+  `ShareCardThemePlugin`, `SubscriptionExtensionPlugin`, or a
+  combination). See the existing plugin sources at
+  `Sources/<X>Plugin/` in this repo as templates.
+- The plugin's manifest declared **once** in `project.yml`'s
+  `info.properties.CSPluginManifest:` block (id, kind, displayName,
+  version, minHostAPIVersion, permissions, principalClass, category).
+  In Swift the manifest is constructed via the SDK helper:
+
+  ```swift
+  public static let manifest = PluginManifest(bundle: Bundle(for: <YourClass>.self))!
+  ```
+
+  This reads back from the same plist xcodegen writes, so there's
+  one source of truth. Don't duplicate the fields in Swift — that's
+  how parity drift starts.
 - The plugin builds as a `.csplugin` bundle (see
-  `docs/PLUGIN_PACKAGING.md`).
+  [`docs/PLUGIN_PACKAGING.md`](https://github.com/sj719045032/claude-statistics/blob/main/docs/PLUGIN_PACKAGING.md)
+  in the host repo).
 
 ## Step 1 — package
 
@@ -119,11 +125,15 @@ user**, not the protocol it implements:
 | `category` | Pick this if… |
 |---|---|
 | `provider` | You ship a provider adapter for an AI coding CLI (Codex / Gemini / Aider / …). Note: Claude is the chassis's built-in default provider — see `PLUGIN_ARCHITECTURE.md` §1.1. |
-| `terminal` | You adapt a terminal emulator for focus return + new-session launching (iTerm2, Kitty, Alacritty, …). |
-| `chat-app` | You integrate a desktop chat app via deep-link (Claude.app, Codex.app, …). |
+| `terminal` | You adapt a terminal emulator, editor, or chat app for focus return + new-session launching / deep-link integration. The marketplace UI shows this bucket as **Integrations**. |
+| `subscription` | You ship a `SubscriptionExtensionPlugin` adapting a third-party endpoint (vendor token + quota API piggy-backing on an existing provider's CLI). See [`docs/SUBSCRIPTION_EXTENSIONS.md`](https://github.com/sj719045032/claude-statistics/blob/main/docs/SUBSCRIPTION_EXTENSIONS.md). |
 | `share-card` | You contribute share-card roles, scoring, or visual themes. |
-| `editor-integration` | You integrate a code editor (VSCode, Cursor, Zed, …). |
 | `utility` | Anything else. Also the fallback the UI uses for unknown values. |
+
+Legacy values (`chat-app`, `editor-integration`, `vendor`) are still
+accepted by the loader and aliased into the buckets above
+(`terminal` for the first two, `provider` for `vendor`). New
+submissions should use the canonical names.
 
 Custom strings outside this set are accepted by the loader but the
 UI groups them under **Utility**. If you think a new bucket is
