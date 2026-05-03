@@ -245,7 +245,7 @@ targets:
           kind: terminal
           displayName: Ghostty
           version: 1.0.0
-          minHostAPIVersion: 0.1.0
+          minHostAPIVersion: 0.3.0
           permissions:
             - appleScript
           principalClass: GhosttyPlugin
@@ -277,7 +277,7 @@ targets:
           kind: terminal
           displayName: iTerm2
           version: 1.0.0
-          minHostAPIVersion: 0.1.0
+          minHostAPIVersion: 0.3.0
           permissions:
             - appleScript
           principalClass: ITermPlugin
@@ -309,7 +309,7 @@ targets:
           kind: terminal
           displayName: Kitty
           version: 1.0.0
-          minHostAPIVersion: 0.1.0
+          minHostAPIVersion: 0.3.0
           permissions:
             - filesystemHome
           principalClass: KittyPlugin
@@ -434,7 +434,7 @@ targets:
           kind: terminal
           displayName: WezTerm
           version: 1.0.0
-          minHostAPIVersion: 0.1.0
+          minHostAPIVersion: 0.3.0
           permissions: []
           principalClass: WezTermPlugin
           category: terminal
@@ -530,7 +530,7 @@ targets:
           kind: subscriptionExtension
           displayName: GLM Coding Plan
           version: 1.0.1
-          minHostAPIVersion: 0.2.0
+          minHostAPIVersion: 0.3.0
           permissions:
             - filesystemHome
             - network
