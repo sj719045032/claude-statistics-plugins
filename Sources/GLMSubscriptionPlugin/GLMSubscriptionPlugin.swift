@@ -42,7 +42,7 @@ final class GLMSubscriptionPlugin: NSObject, SubscriptionExtensionPlugin {
         id: "com.bigmodel.glm-subscription",
         kind: .subscriptionExtension,
         displayName: "GLM Coding Plan",
-        version: SemVer(major: 1, minor: 0, patch: 1),
+        version: SemVer(major: 1, minor: 1, patch: 0),
         minHostAPIVersion: SDKInfo.apiVersion,
         permissions: [.filesystemHome, .network],
         principalClass: "GLMSubscriptionPlugin",
