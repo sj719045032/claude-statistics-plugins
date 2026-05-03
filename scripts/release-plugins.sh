@@ -168,15 +168,47 @@ for sidecar in "${MARKETPLACE_DIR}"/*.sha256; do
     FRAG="${NAME}.csplugin.zip"
     URL="${DOWNLOAD_URL_PREFIX}/${FRAG}"
 
+    # Per-plugin manifest version (NOT the catalog tag). The host
+    # decides "update available" by comparing index.json's `version`
+    # against the locally-installed bundle's CSPluginManifest:version.
+    # Stamping ${VERSION} (catalog tag) here while bundles still
+    # carry their own static manifest version (1.0.0 / 1.1.0 / …)
+    # caused a permanent update loop — users would install the new
+    # bundle, its baked-in manifest still said 1.0.0, and the next
+    # marketplace fetch reported 1.2.1 > 1.0.0 again.
+    PLUGIN_PLIST="${REPO_ROOT}/Sources/${NAME}/Info.plist"
+    if [ -f "${PLUGIN_PLIST}" ]; then
+        PLUGIN_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CSPluginManifest:version" "${PLUGIN_PLIST}" 2>/dev/null || true)"
+        PLUGIN_MIN_API="$(/usr/libexec/PlistBuddy -c "Print :CSPluginManifest:minHostAPIVersion" "${PLUGIN_PLIST}" 2>/dev/null || true)"
+    else
+        PLUGIN_VERSION=""
+        PLUGIN_MIN_API=""
+    fi
+    if [ -z "${PLUGIN_VERSION}" ]; then
+        echo "    ! ${NAME}: couldn't read manifest version from ${PLUGIN_PLIST} — falling back to catalog tag '${VERSION}'."
+        PLUGIN_VERSION="${VERSION}"
+    fi
+
     BEFORE="$(jq -r --arg f "${FRAG}" \
         '[.entries[] | select(.downloadURL | endswith($f)) | .sha256] | .[0] // ""' \
         "${TMPFILE}")"
 
-    jq --arg f "${FRAG}" --arg s "${SHA}" --arg v "${VERSION}" --arg u "${URL}" \
-        '.entries |= map(if (.downloadURL | endswith($f)) then
-            .sha256 = $s | .version = $v | .downloadURL = $u
-        else . end)' \
-        "${TMPFILE}" > "${TMPFILE}.new"
+    # Always overwrite sha256/version/downloadURL; only touch
+    # minHostAPIVersion when we have a value to write so a missing
+    # plist key doesn't accidentally erase the existing entry.
+    if [ -n "${PLUGIN_MIN_API}" ]; then
+        jq --arg f "${FRAG}" --arg s "${SHA}" --arg v "${PLUGIN_VERSION}" --arg u "${URL}" --arg m "${PLUGIN_MIN_API}" \
+            '.entries |= map(if (.downloadURL | endswith($f)) then
+                .sha256 = $s | .version = $v | .downloadURL = $u | .minHostAPIVersion = $m
+            else . end)' \
+            "${TMPFILE}" > "${TMPFILE}.new"
+    else
+        jq --arg f "${FRAG}" --arg s "${SHA}" --arg v "${PLUGIN_VERSION}" --arg u "${URL}" \
+            '.entries |= map(if (.downloadURL | endswith($f)) then
+                .sha256 = $s | .version = $v | .downloadURL = $u
+            else . end)' \
+            "${TMPFILE}" > "${TMPFILE}.new"
+    fi
     mv "${TMPFILE}.new" "${TMPFILE}"
 
     AFTER="$(jq -r --arg f "${FRAG}" \
