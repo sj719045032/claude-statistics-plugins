@@ -138,6 +138,35 @@ Prereqs:
   resolves the SDK at SwiftPM-resolution time, so the SDK release
   must already exist.
 
+### Single source of truth for plugin manifest
+
+**Always edit `project.yml`, not `Sources/<X>Plugin/Info.plist`.**
+
+xcodegen rewrites every plugin's `Info.plist` from `project.yml` on
+each `release-plugins.sh` run (Step 1 below). Hand-edits to plists
+look fine in `git diff` but get clobbered the moment xcodegen runs
+again, shipping bundles with stale `version` / `minHostAPIVersion` /
+permissions. The full plist `CSPluginManifest` dict — `id`, `kind`,
+`displayName`, `version`, `minHostAPIVersion`, `permissions`,
+`principalClass`, `category` — lives under each plugin's
+`info.properties.CSPluginManifest:` block in `project.yml`.
+
+Downstream:
+
+- Plist is a **derived artifact** of project.yml (xcodegen output).
+- The SDK helper `PluginManifest(bundle:)` reads the plist at
+  runtime, so the plugin's Swift source declares
+  `static let manifest = PluginManifest(bundle: Bundle(for: <Class>.self))!`
+  and inherits whatever project.yml defines. No version field
+  duplicated in Swift.
+- `index.json` is rewritten by `release-plugins.sh` from the same
+  plist values, so the marketplace metadata, the bundle metadata,
+  and the build configuration all trace back to one file.
+
+If a value in a published bundle is wrong, the fix is in
+project.yml. Editing the plist directly is a temporary workaround
+that survives until the next xcodegen run.
+
 What the script does, step by step:
 
 1. `xcodegen generate` produces `ClaudeStatisticsPlugins.xcodeproj`.
