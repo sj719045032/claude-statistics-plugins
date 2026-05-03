@@ -159,6 +159,7 @@ private struct CodexAccountSwitcherAccessory: View {
             Button("session.cancel", role: .cancel) { pendingDeleteAccount = nil }
             Button("session.delete", role: .destructive) {
                 accountManager.removeManagedAccount(id: account.id)
+                onAfterSwitch()
                 pendingDeleteAccount = nil
             }
         } message: { account in
@@ -172,6 +173,7 @@ private struct CodexAccountSwitcherAccessory: View {
             Button("session.cancel", role: .cancel) { pendingSignOutAccount = nil }
             Button("settings.accountSwitcher.signOut", role: .destructive) {
                 accountManager.removeManagedAccount(id: account.id)
+                onAfterSwitch()
                 pendingSignOutAccount = nil
             }
         } message: { account in

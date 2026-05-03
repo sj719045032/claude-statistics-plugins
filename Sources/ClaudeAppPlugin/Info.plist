@@ -21,9 +21,9 @@
 	<key>CSPluginManifest</key>
 	<dict>
 		<key>category</key>
-		<string>chat-app</string>
+		<string>terminal</string>
 		<key>displayName</key>
-		<string>Claude</string>
+		<string>Claude App</string>
 		<key>id</key>
 		<string>com.anthropic.claudefordesktop</string>
 		<key>kind</key>

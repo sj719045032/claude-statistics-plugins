@@ -13,9 +13,11 @@ options:
 # `.xcframework` published as a `sdk-v<x.y.z>` GitHub release asset
 # — SwiftPM auto-fetches and unzips that binary at resolve time.
 packages:
+  # SDK_MODE_BEGIN — managed by scripts/sdk-mode.sh
   ClaudeStatisticsKit:
     url: https://github.com/sj719045032/claude-statistics
     branch: main
+  # SDK_MODE_END
 
 settingGroups:
   pluginBundle:

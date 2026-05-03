@@ -106,7 +106,8 @@ final class CodexProvider: SessionDataProvider, UsageProvider, AccountProvider, 
             TerminalLaunchRequest(
                 executable: "codex",
                 arguments: [],
-                cwd: resolvedProjectPath(for: session)
+                cwd: resolvedProjectPath(for: session),
+                intent: .newSession(metadata: session.metadata)
             )
         )
     }
@@ -116,7 +117,8 @@ final class CodexProvider: SessionDataProvider, UsageProvider, AccountProvider, 
             TerminalLaunchRequest(
                 executable: "codex",
                 arguments: ["resume", session.externalID],
-                cwd: resolvedProjectPath(for: session)
+                cwd: resolvedProjectPath(for: session),
+                intent: .resumeSession(sessionID: session.externalID, metadata: session.metadata)
             )
         )
     }
@@ -134,7 +136,8 @@ final class CodexProvider: SessionDataProvider, UsageProvider, AccountProvider, 
             TerminalLaunchRequest(
                 executable: "codex",
                 arguments: [],
-                cwd: path
+                cwd: path,
+                intent: .newSession()
             )
         )
     }

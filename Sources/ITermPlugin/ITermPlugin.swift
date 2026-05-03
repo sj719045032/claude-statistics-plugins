@@ -51,6 +51,28 @@ public final class ITermPlugin: NSObject, TerminalPlugin {
     }
 }
 
+// MARK: - Env identification
+
+extension ITermPlugin: TerminalEnvIdentifying {
+    public var envIdentification: TerminalEnvIdentification {
+        // ITERM_SESSION_ID is shaped as `<profile>:<surface-uuid>`;
+        // only the trailing UUID is stable across iTerm reloads, so
+        // the surfaceTransform peels the prefix before the host
+        // stores it as `terminal_surface_id`.
+        TerminalEnvIdentification(
+            envVars: ["ITERM_SESSION_ID"],
+            canonicalName: "iTerm2",
+            surfaceEnv: "ITERM_SESSION_ID",
+            surfaceTransform: { raw in
+                raw
+                    .split(separator: ":", maxSplits: 1)
+                    .last
+                    .map(String.init)
+            }
+        )
+    }
+}
+
 // MARK: - Launcher
 
 private struct ITermLauncher: TerminalLauncher {

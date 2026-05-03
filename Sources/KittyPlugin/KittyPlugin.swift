@@ -56,6 +56,24 @@ public final class KittyPlugin: NSObject, TerminalPlugin {
     }
 }
 
+// MARK: - Env identification
+
+extension KittyPlugin: TerminalEnvIdentifying {
+    public var envIdentification: TerminalEnvIdentification {
+        // Kitty exports KITTY_WINDOW_ID + KITTY_LISTEN_ON to every
+        // child process. The host walks every TerminalEnvIdentifying
+        // plugin against the hook's transmitted env to recover the
+        // canonical row name and IPC fields without any host-side
+        // hardcoding.
+        TerminalEnvIdentification(
+            envVars: ["KITTY_WINDOW_ID", "KITTY_LISTEN_ON"],
+            canonicalName: "kitty",
+            socketEnv: "KITTY_LISTEN_ON",
+            surfaceEnv: "KITTY_WINDOW_ID"
+        )
+    }
+}
+
 // MARK: - Launcher
 
 private struct KittyLauncher: TerminalLauncher {

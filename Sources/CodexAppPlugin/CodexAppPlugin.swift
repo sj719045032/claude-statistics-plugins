@@ -52,7 +52,7 @@ public final class CodexAppPlugin: NSObject, TerminalPlugin {
     }
 
     public func makeLauncher() -> (any TerminalLauncher)? {
-        ActivateAppLauncher(bundleIdentifiers: Array(descriptor.bundleIdentifiers))
+        CodexAppLauncher(bundleIdentifiers: Array(descriptor.bundleIdentifiers))
     }
 
     /// Codex.app fires a fresh `codex-cli` subprocess (with a new
@@ -70,6 +70,99 @@ public final class CodexAppPlugin: NSObject, TerminalPlugin {
                 prefixes: ["Generate 0 to 3 ambient suggestions"]
             )
         ]
+    }
+}
+
+struct CodexAppLauncher: TerminalLauncher {
+    let bundleIdentifiers: [String]
+
+    func launch(_ request: TerminalLaunchRequest) {
+        if request.executable == "codex",
+           request.arguments.isEmpty,
+           openProject(request.cwd) {
+            return
+        }
+
+        if request.executable == "codex",
+           request.arguments.count == 2,
+           request.arguments[0] == "resume",
+           let url = URL(string: "codex://threads/\(request.arguments[1])"),
+           NSWorkspace.shared.open(url) {
+            return
+        }
+
+        if request.executable == "codex",
+           request.arguments.count == 2,
+           request.arguments[0] == "resume" {
+            copyCommandAndNotify(request, messageKey: "detail.resumeCopiedManual")
+            activateCodexApp()
+            return
+        }
+
+        if request.executable == "codex",
+           request.arguments.isEmpty,
+           case .newSession = request.intent {
+            copyCommandAndNotify(request, messageKey: "detail.newCopiedManual")
+            activateCodexApp()
+            return
+        }
+
+        if let url = URL(string: "codex://"), NSWorkspace.shared.open(url) {
+            return
+        }
+
+        activateCodexApp()
+    }
+
+    private func openProject(_ path: String) -> Bool {
+        guard let appURL = appURL() else { return false }
+
+        let expanded = (path as NSString).expandingTildeInPath
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: expanded, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            return false
+        }
+
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.open(
+            [URL(fileURLWithPath: expanded, isDirectory: true)],
+            withApplicationAt: appURL,
+            configuration: configuration
+        )
+        activateCodexApp()
+        return true
+    }
+
+    private func copyCommandAndNotify(_ request: TerminalLaunchRequest, messageKey: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(request.commandInWorkingDirectory, forType: .string)
+        TerminalDispatch.notify(NSLocalizedString(messageKey, comment: ""))
+    }
+
+    private func activateCodexApp() {
+        if let running = bundleIdentifiers
+            .lazy
+            .flatMap({ NSRunningApplication.runningApplications(withBundleIdentifier: $0) })
+            .first {
+            running.unhide()
+            _ = running.activate(options: [.activateAllWindows])
+            return
+        }
+
+        guard let appURL = appURL() else { return }
+
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: appURL, configuration: configuration)
+    }
+
+    private func appURL() -> URL? {
+        bundleIdentifiers
+            .lazy
+            .compactMap({ NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) })
+            .first
     }
 }
 

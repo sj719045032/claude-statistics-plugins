@@ -2,7 +2,9 @@ import AppKit
 import ClaudeStatisticsKit
 import Foundation
 
-/// Trae editor plugin (ByteDance's VSCode fork).
+/// Trae editor plugin (ByteDance's VSCode fork). Trae ships multiple
+/// regional app bundles; keep the identifiers together so detection,
+/// focus and project-open all resolve through the installed variant.
 @objc(TraePlugin)
 public final class TraePlugin: NSObject, TerminalPlugin {
     public static let manifest = PluginManifest(
@@ -20,30 +22,47 @@ public final class TraePlugin: NSObject, TerminalPlugin {
         id: "com.trae.app",
         displayName: "Trae",
         category: .editor,
-        bundleIdentifiers: ["com.trae.app"],
-        terminalNameAliases: ["trae"],
-        processNameHints: ["trae"],
+        bundleIdentifiers: [
+            "com.trae.app",
+            "cn.trae.app"
+        ],
+        terminalNameAliases: [
+            "trae",
+            "trae-cn",
+            "trae cn",
+            "marscode"
+        ],
+        processNameHints: [
+            "trae",
+            "trae-cn",
+            "trae cn",
+            "marscode"
+        ],
         focusPrecision: .appOnly,
         autoLaunchPriority: nil
     )
 
+    private var bundleIDs: [String] {
+        ["com.trae.app", "cn.trae.app"]
+    }
+
     public override init() { super.init() }
 
     public func detectInstalled() -> Bool {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: descriptor.bundleIdentifiers.first!) != nil
+        bundleIDs.contains { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) != nil }
     }
 
     public func makeFocusStrategy() -> (any TerminalFocusStrategy)? {
-        ActivateAppFocusStrategy(bundleIdentifiers: Array(descriptor.bundleIdentifiers))
+        ActivateAppFocusStrategy(bundleIdentifiers: bundleIDs)
     }
 
     public func makeLauncher() -> (any TerminalLauncher)? {
-        OpenInEditorLauncher(bundleIdentifiers: Array(descriptor.bundleIdentifiers))
+        OpenInEditorLauncher(bundleIdentifiers: bundleIDs)
     }
 
     public func makeReadinessProvider() -> (any TerminalReadinessProviding)? {
         EditorReadinessProvider(
-            bundleIdentifiers: Array(descriptor.bundleIdentifiers),
+            bundleIdentifiers: bundleIDs,
             displayName: "Trae",
             actionID: "trae.open"
         )

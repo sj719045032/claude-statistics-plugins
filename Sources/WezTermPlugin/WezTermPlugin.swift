@@ -52,6 +52,23 @@ public final class WezTermPlugin: NSObject, TerminalPlugin {
     }
 }
 
+// MARK: - Env identification
+
+extension WezTermPlugin: TerminalEnvIdentifying {
+    public var envIdentification: TerminalEnvIdentification {
+        // WezTerm exports WEZTERM_PANE (pane id) and WEZTERM_UNIX_SOCKET
+        // (mux socket) into every child shell. The host's
+        // HookTerminalResolver picks the row up via this declaration —
+        // no host-side env-var hardcoding needed.
+        TerminalEnvIdentification(
+            envVars: ["WEZTERM_PANE", "WEZTERM_UNIX_SOCKET"],
+            canonicalName: "wezterm",
+            socketEnv: "WEZTERM_UNIX_SOCKET",
+            surfaceEnv: "WEZTERM_PANE"
+        )
+    }
+}
+
 // MARK: - Launcher
 
 private struct WezTermLauncher: TerminalLauncher {
@@ -97,14 +114,7 @@ private struct WezTermLauncher: TerminalLauncher {
         // `wezterm start` / `cli spawn` don't bring the app forward
         // on macOS (unlike e.g. kitty `--single-instance`). Without
         // this the launched tab sits behind whatever had focus.
-        activateApp()
-    }
-
-    private func activateApp() {
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.github.wez.wezterm") else { return }
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = true
-        NSWorkspace.shared.openApplication(at: appURL, configuration: configuration)
+        activateWezTermApp()
     }
 }
 
@@ -122,6 +132,7 @@ private struct WezTermFocusStrategy: TerminalFocusStrategy {
 
     func directFocus(target: TerminalFocusTarget) async -> TerminalFocusExecutionResult? {
         guard focusViaCLI(target: target) else { return nil }
+        activateWezTermApp()
         return TerminalFocusExecutionResult(capability: .ready, resolvedStableID: target.terminalStableID)
     }
 
@@ -226,8 +237,29 @@ private enum WezTermCLIRunner {
         arguments: [String],
         terminalSocket: String?
     ) -> String? {
-        let envSocket = resolvedSocketPath(from: terminalSocket) ?? resolvedDefaultSocketPath()
-        let environment: [String: String] = envSocket.map { ["WEZTERM_UNIX_SOCKET": $0] } ?? [:]
+        for envSocket in socketCandidates(terminalSocket: terminalSocket) {
+            if let output = runOnce(
+                wezterm: wezterm,
+                arguments: arguments,
+                terminalSocket: envSocket
+            ) {
+                return output
+            }
+        }
+
+        return runOnce(
+            wezterm: wezterm,
+            arguments: arguments,
+            terminalSocket: nil
+        )
+    }
+
+    private static func runOnce(
+        wezterm: String,
+        arguments: [String],
+        terminalSocket: String?
+    ) -> String? {
+        let environment: [String: String] = terminalSocket.map { ["WEZTERM_UNIX_SOCKET": $0] } ?? [:]
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: wezterm)
@@ -249,6 +281,16 @@ private enum WezTermCLIRunner {
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { return nil }
         return String(data: stdoutData, encoding: .utf8)
+    }
+
+    private static func socketCandidates(terminalSocket: String?) -> [String] {
+        var seen = Set<String>()
+        return [
+            resolvedSocketPath(from: terminalSocket),
+            resolvedDefaultSocketPath()
+        ]
+        .compactMap { $0 }
+        .filter { seen.insert($0).inserted }
     }
 
     static func ttyVariants(_ tty: String) -> Set<String> {
@@ -334,6 +376,13 @@ private struct WezTermPane: Decodable {
         case ttyName = "tty_name"
         case cwd
     }
+}
+
+private func activateWezTermApp() {
+    guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.github.wez.wezterm") else { return }
+    let configuration = NSWorkspace.OpenConfiguration()
+    configuration.activates = true
+    NSWorkspace.shared.openApplication(at: appURL, configuration: configuration)
 }
 
 private extension String {

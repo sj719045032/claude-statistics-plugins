@@ -55,6 +55,146 @@ public final class GhosttyPlugin: NSObject, TerminalPlugin {
     }
 }
 
+// MARK: - Context enrichment
+
+extension GhosttyPlugin: TerminalContextEnriching {
+    /// Ghostty doesn't export a per-surface env var, so the host has
+    /// no env-only path to recover its window/tab/stable IDs. The
+    /// plugin uses AppleScript to ask the running app for either
+    /// (a) the frontmost terminal whose cwd matches the hook's cwd,
+    /// or (b) — when (a) is too eager — the unique window whose cwd
+    /// matches. Cheap-event gating keeps high-frequency hook events
+    /// from spamming osascript on every PreToolUse.
+    public func enrichContext(
+        event: String,
+        cwd: String?,
+        env: [String: String]
+    ) -> HookTerminalContext? {
+        let frontmostEvents: Set<String> = ["SessionStart", "UserPromptSubmit"]
+        if frontmostEvents.contains(event),
+           let frontmost = ghosttyFrontmostContext(cwd: cwd) {
+            return frontmost
+        }
+        return ghosttyUniqueDirectoryMatch(cwd: cwd)
+    }
+}
+
+private func ghosttyFrontmostContext(cwd: String?) -> HookTerminalContext? {
+    let script = """
+    tell application id "com.mitchellh.ghostty"
+        try
+            set w to front window
+            set tabRef to selected tab of w
+            set terminalRef to focused terminal of tabRef
+            set outputLine to (id of w as text) & (ASCII character 31) & (id of tabRef as text) & (ASCII character 31) & (id of terminalRef as text) & (ASCII character 31) & (working directory of terminalRef as text)
+            return outputLine
+        end try
+    end tell
+    return ""
+    """
+
+    guard let output = GhosttyScriptRunner.run(script) else {
+        DiagnosticLogger.shared.verbose(
+            "GhosttyContextEnricher frontmost osascript failed cwd=\(cwd ?? "-")"
+        )
+        return nil
+    }
+
+    let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+    let parts = trimmed.split(separator: "\u{1F}", omittingEmptySubsequences: false)
+    guard parts.count == 4 else {
+        DiagnosticLogger.shared.verbose(
+            "GhosttyContextEnricher frontmost parse mismatch fields=\(parts.count) raw=\(trimmed.debugDescription)"
+        )
+        return nil
+    }
+
+    let resolvedCWD = ghosttyNormalizePath(cwd)
+    let resolvedTerminalCWD = ghosttyNormalizePath(String(parts[3]))
+    guard resolvedTerminalCWD == resolvedCWD else {
+        DiagnosticLogger.shared.verbose(
+            "GhosttyContextEnricher frontmost cwd mismatch hook=\(resolvedCWD ?? "-") ghostty=\(resolvedTerminalCWD ?? "-")"
+        )
+        return nil
+    }
+
+    DiagnosticLogger.shared.verbose(
+        "GhosttyContextEnricher frontmost matched window=\(String(parts[0])) tab=\(String(parts[1])) stable=\(String(parts[2])) cwd=\(resolvedTerminalCWD ?? "-")"
+    )
+    return HookTerminalContext(
+        socket: nil,
+        windowID: String(parts[0]).nilIfEmpty,
+        tabID: String(parts[1]).nilIfEmpty,
+        surfaceID: String(parts[2]).nilIfEmpty
+    )
+}
+
+private func ghosttyUniqueDirectoryMatch(cwd: String?) -> HookTerminalContext? {
+    let script = """
+    tell application id "com.mitchellh.ghostty"
+        set outputLines to {}
+        repeat with w in every window
+            set windowID to id of w as text
+            repeat with tabRef in every tab of w
+                set tabID to id of tabRef as text
+                set terminalRef to focused terminal of tabRef
+                set terminalID to id of terminalRef as text
+                set terminalWD to working directory of terminalRef as text
+                set end of outputLines to windowID & (ASCII character 31) & tabID & (ASCII character 31) & terminalID & (ASCII character 31) & terminalWD
+            end repeat
+        end repeat
+        set AppleScript's text item delimiters to linefeed
+        set outputText to outputLines as text
+        set AppleScript's text item delimiters to ""
+        return outputText
+    end tell
+    """
+
+    guard let output = GhosttyScriptRunner.run(script) else {
+        return nil
+    }
+
+    let target = ghosttyNormalizePath(cwd)
+    var matches: [HookTerminalContext] = []
+    for line in output.split(whereSeparator: \.isNewline) {
+        let parts = line.split(separator: "\u{1F}", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { continue }
+        guard ghosttyNormalizePath(String(parts[3])) == target else { continue }
+        matches.append(
+            HookTerminalContext(
+                socket: nil,
+                windowID: String(parts[0]).nilIfEmpty,
+                tabID: String(parts[1]).nilIfEmpty,
+                surfaceID: String(parts[2]).nilIfEmpty
+            )
+        )
+    }
+
+    DiagnosticLogger.shared.verbose(
+        "GhosttyContextEnricher unique cwd scan target=\(target ?? "-") matches=\(matches.count)"
+    )
+    return matches.count == 1 ? matches[0] : nil
+}
+
+private func ghosttyNormalizePath(_ value: String?) -> String? {
+    guard let value else { return nil }
+    var text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !text.isEmpty else { return nil }
+
+    if text.hasPrefix("file://") {
+        if let decoded = URL(string: text)?.path.removingPercentEncoding {
+            text = decoded
+        } else {
+            text = String(text.dropFirst(7))
+        }
+    }
+
+    return URL(fileURLWithPath: text)
+        .resolvingSymlinksInPath()
+        .standardizedFileURL
+        .path
+}
+
 // MARK: - Launcher
 
 private struct GhosttyLauncher: TerminalLauncher {

@@ -32,7 +32,7 @@ final class CodexSessionScanner {
         guard let db = openOrReuseDB(path: dbPath) else { return [] }
 
         let sql = """
-            SELECT id, rollout_path, title, cwd, created_at, updated_at
+            SELECT id, rollout_path, title, cwd, created_at, updated_at, source
             FROM threads
             WHERE archived = 0 AND rollout_path IS NOT NULL
             ORDER BY updated_at DESC
@@ -61,6 +61,7 @@ final class CodexSessionScanner {
             let cwd = columnText(stmt, at: 3) ?? ""
             let createdAt = sqlite3_column_int64(stmt, 4)
             let updatedAt = sqlite3_column_int64(stmt, 5)
+            let source = columnText(stmt, at: 6) ?? ""
 
             let fileSize = stat.size
             guard fileSize > 0 else { continue }
@@ -80,7 +81,8 @@ final class CodexSessionScanner {
                 startTime: startTime,
                 lastModified: lastModified,
                 fileSize: fileSize,
-                cwd: trimmedCwd.isEmpty ? nil : trimmedCwd
+                cwd: trimmedCwd.isEmpty ? nil : trimmedCwd,
+                metadata: source.isEmpty ? [:] : ["codex.source": source]
             ))
         }
 

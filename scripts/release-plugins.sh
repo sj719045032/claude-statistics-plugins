@@ -72,6 +72,43 @@ if gh release view "v${VERSION}" --repo "${CATALOG_REMOTE_URL}" >/dev/null 2>&1;
     exit 4
 fi
 
+# Pre-flight: every plugin's Swift `static let manifest.version`
+# must agree with its sibling `Info.plist` `CSPluginManifest:version`.
+# Drift between the two is invisible at build time but causes the
+# host's Discover panel to display a permanent (un-resolvable)
+# "Restart" badge — the dlopen'd Mach-O ships the Swift manifest, the
+# host's stale-bundle check reads the plist, and a relaunch can't
+# reconcile a version the source itself doesn't yet declare. Catch it
+# here so a relased plugin never reaches users in that broken state.
+echo "==> Validating manifest version parity (Swift static manifest ↔ Info.plist)..."
+DRIFT_LIST=""
+DRIFT_COUNT=0
+for plist in "${REPO_ROOT}/Sources/"*/Info.plist; do
+    plugin_dir="$(dirname "${plist}")"
+    plugin_name="$(basename "${plugin_dir}")"
+    swift_file="${plugin_dir}/${plugin_name}.swift"
+    [ -f "${swift_file}" ] || continue
+
+    plist_version="$(/usr/libexec/PlistBuddy -c "Print :CSPluginManifest:version" "${plist}" 2>/dev/null || true)"
+    swift_version="$(grep -E "version: SemVer\(major: [0-9]+, minor: [0-9]+, patch: [0-9]+\)" "${swift_file}" \
+        | head -1 \
+        | sed -E 's/.*major: ([0-9]+), minor: ([0-9]+), patch: ([0-9]+).*/\1.\2.\3/')"
+
+    if [ -z "${plist_version}" ] || [ -z "${swift_version}" ]; then
+        continue
+    fi
+    if [ "${plist_version}" != "${swift_version}" ]; then
+        DRIFT_LIST="${DRIFT_LIST}    ${plugin_name}: Info.plist=${plist_version}  Swift=${swift_version}\n"
+        DRIFT_COUNT=$((DRIFT_COUNT + 1))
+    fi
+done
+if [ "${DRIFT_COUNT}" -gt 0 ]; then
+    echo "==> ${DRIFT_COUNT} plugin(s) have manifest version drift:" >&2
+    printf "${DRIFT_LIST}" >&2
+    echo "    Sync the Swift source manifest and Info.plist, then re-run." >&2
+    exit 4
+fi
+
 echo ""
 echo "╔══════════════════════════════════════════════╗"
 echo "║  Releasing catalog plugins v${VERSION}"

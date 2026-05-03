@@ -21,9 +21,9 @@
 	<key>CSPluginManifest</key>
 	<dict>
 		<key>category</key>
-		<string>chat-app</string>
+		<string>terminal</string>
 		<key>displayName</key>
-		<string>Codex</string>
+		<string>Codex App</string>
 		<key>id</key>
 		<string>com.openai.codex.app</string>
 		<key>kind</key>

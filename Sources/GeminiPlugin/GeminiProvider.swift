@@ -95,7 +95,8 @@ final class GeminiProvider: SessionDataProvider, UsageProvider, AccountProvider,
             TerminalLaunchRequest(
                 executable: "gemini",
                 arguments: [],
-                cwd: resolvedProjectPath(for: session)
+                cwd: resolvedProjectPath(for: session),
+                intent: .newSession(metadata: session.metadata)
             )
         )
     }
@@ -105,7 +106,8 @@ final class GeminiProvider: SessionDataProvider, UsageProvider, AccountProvider,
             TerminalLaunchRequest(
                 executable: "gemini",
                 arguments: ["resume", session.externalID],
-                cwd: resolvedProjectPath(for: session)
+                cwd: resolvedProjectPath(for: session),
+                intent: .resumeSession(sessionID: session.externalID, metadata: session.metadata)
             )
         )
     }
@@ -123,7 +125,8 @@ final class GeminiProvider: SessionDataProvider, UsageProvider, AccountProvider,
             TerminalLaunchRequest(
                 executable: "gemini",
                 arguments: [],
-                cwd: path
+                cwd: path,
+                intent: .newSession()
             )
         )
     }

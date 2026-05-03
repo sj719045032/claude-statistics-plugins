@@ -347,9 +347,24 @@ final class CodexAccountManager: ObservableObject {
         do {
             let snapshot = try loadSnapshot()
             guard let account = snapshot.accounts.first(where: { $0.id == id }) else { return }
-            let updated = snapshot.accounts.filter { $0.id != id }
-            try storeSnapshot(CodexManagedAccountSet(version: Self.storeVersion, accounts: updated))
+            let removingLive = isLiveAccount(account)
+            let remaining = snapshot.accounts.filter { $0.id != id }
+            try storeSnapshot(CodexManagedAccountSet(version: Self.storeVersion, accounts: remaining))
             try removeManagedHomeIfSafe(atPath: account.managedHomePath)
+
+            if removingLive {
+                if let next = remaining.max(by: { $0.updatedAt < $1.updatedAt }),
+                   let nextMaterial = try? CodexAuthStore.readAuthMaterial(homePath: next.managedHomePath) {
+                    try CodexAuthStore.writeAuthData(nextMaterial.rawData, homePath: CodexAuthStore.ambientHomePath())
+                } else {
+                    // No remaining accounts — remove the ambient ~/.codex/auth.json so
+                    // load() does not re-import it on the next refresh.
+                    let ambientAuthPath = CodexAuthStore.authPath(forHomePath: CodexAuthStore.ambientHomePath())
+                    try? fileManager.removeItem(atPath: ambientAuthPath)
+                }
+                CodexUsageService.shared.resetLocalState()
+            }
+
             load()
             noticeMessage = String(
                 format: NSLocalizedString("settings.codexAccounts.removed %@", comment: ""),

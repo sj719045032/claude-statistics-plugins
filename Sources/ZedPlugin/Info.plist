@@ -21,7 +21,7 @@
 	<key>CSPluginManifest</key>
 	<dict>
 		<key>category</key>
-		<string>editor-integration</string>
+		<string>terminal</string>
 		<key>displayName</key>
 		<string>Zed</string>
 		<key>id</key>
