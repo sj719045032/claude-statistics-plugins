@@ -5,13 +5,6 @@ struct CodexHookInstaller: HookInstalling {
     let providerId: String = "codex"
 
     private static let scriptName = "claude-stats-codex-hook"
-    private static let managedMarkers = [
-        "claude-stats-codex-hook",
-        "claude-stats-hook",
-        "codex-island-state.py",
-        "claude-island-state.py",
-        "--claude-stats-hook-provider",
-    ]
 
     private let supportedHookEvents = [
         "SessionStart",
@@ -268,7 +261,7 @@ struct CodexHookInstaller: HookInstalling {
 
             let retained = inner.filter { hook in
                 let command = hook["command"] as? String ?? ""
-                return !Self.isManagedCommand(command)
+                return !isCurrentRuntimeHookCommand(command)
             }
             guard !retained.isEmpty else {
                 return nil
@@ -280,8 +273,19 @@ struct CodexHookInstaller: HookInstalling {
         }
     }
 
-    private static func isManagedCommand(_ command: String) -> Bool {
-        managedMarkers.contains { command.contains($0) }
+    private func isCurrentRuntimeHookCommand(_ command: String) -> Bool {
+        let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              trimmed.contains("--claude-stats-hook-provider \(providerId)") else {
+            return false
+        }
+
+        let currentRoot = AppRuntimePaths.rootDirectory
+        if trimmed.contains("\(currentRoot)/") || trimmed.contains("\(HookInstallerUtils.shellQuoted(currentRoot))/") {
+            return true
+        }
+
+        return trimmed == commandPath
     }
 
     private func removeHooksDirIfEmpty() throws {

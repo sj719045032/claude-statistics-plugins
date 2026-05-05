@@ -145,7 +145,7 @@ targets:
           id: com.openai.codex
           kind: provider
           displayName: Codex
-          version: 1.0.0
+          version: 1.0.1
           minHostAPIVersion: 0.1.0
           permissions:
             - filesystemHome
@@ -210,7 +210,7 @@ targets:
           id: com.google.gemini
           kind: provider
           displayName: Gemini
-          version: 1.0.0
+          version: 1.0.1
           minHostAPIVersion: 0.1.0
           permissions:
             - filesystemHome

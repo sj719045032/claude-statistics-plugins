@@ -40,7 +40,7 @@
 		<key>principalClass</key>
 		<string>CodexPlugin</string>
 		<key>version</key>
-		<string>1.0.0</string>
+		<string>1.0.1</string>
 	</dict>
 	<key>NSPrincipalClass</key>
 	<string>CodexPlugin</string>

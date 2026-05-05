@@ -5,11 +5,6 @@ struct GeminiHookInstaller: HookInstalling {
     let providerId: String = "gemini"
 
     private static let scriptName = "claude-stats-gemini-hook"
-    private static let managedMarkers = [
-        "claude-stats-gemini-hook",
-        "claude-stats-hook",
-        "--claude-stats-hook-provider"
-    ]
 
     // Per Gemini's hook reference, "ToolPermission" is a `notification_type`
     // value inside Notification events, NOT an event name on its own. The
@@ -174,7 +169,9 @@ struct GeminiHookInstaller: HookInstalling {
                     return definition
                 }
 
-                let retained = inner.filter { !Self.isManagedCommand($0["command"] as? String ?? "") }
+                let retained = inner.filter {
+                    !isCurrentRuntimeHookCommand($0["command"] as? String ?? "")
+                }
                 guard !retained.isEmpty else { return nil }
 
                 var updated = definition
@@ -190,7 +187,19 @@ struct GeminiHookInstaller: HookInstalling {
         }
     }
 
-    private static func isManagedCommand(_ command: String) -> Bool {
-        managedMarkers.contains { command.contains($0) }
+    private func isCurrentRuntimeHookCommand(_ command: String) -> Bool {
+        let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              trimmed.contains("--claude-stats-hook-provider \(providerId)") else {
+            return false
+        }
+
+        let currentRoot = AppRuntimePaths.rootDirectory
+        if trimmed.contains("\(currentRoot)/") || trimmed.contains("\(HookInstallerUtils.shellQuoted(currentRoot))/") {
+            return true
+        }
+
+        return trimmed == commandPath
     }
+
 }
