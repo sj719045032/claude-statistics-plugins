@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import ClaudeStatisticsKit
 
 final class CodexTranscriptParser {
@@ -222,19 +223,23 @@ final class CodexTranscriptParser {
         var toolMessageIndices: [String: Int] = [:]
         var toolResults: [String: String] = [:]
 
-        for event in readEvents(at: path) {
+        for (eventIndex, event) in readEvents(at: path).enumerated() {
             switch event.type {
             case "response_item":
                 guard let payloadType = event.payload["type"] as? String else { continue }
 
                 if payloadType == "message" {
                     let role = event.payload["role"] as? String
-                    if role == "user", let text = extractMessageText(from: event.payload), let cleaned = cleanUserText(text) {
+                    let imagePaths = extractImagePaths(from: event.payload, transcriptPath: path, eventIndex: eventIndex)
+                    if role == "user" {
+                        let cleaned = extractMessageText(from: event.payload).flatMap(cleanUserText)
+                        guard cleaned != nil || !imagePaths.isEmpty else { continue }
                         messages.append(TranscriptDisplayMessage(
                             id: "msg-\(messages.count)",
                             role: "user",
-                            text: cleaned,
-                            timestamp: event.timestamp
+                            text: cleaned ?? "",
+                            timestamp: event.timestamp,
+                            imagePaths: imagePaths
                         ))
                     } else if role == "assistant", let text = extractMessageText(from: event.payload) {
                         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -502,6 +507,173 @@ final class CodexTranscriptParser {
         }
 
         return line.isEmpty ? nil : line
+    }
+
+    private func extractImagePaths(from payload: [String: Any], transcriptPath: String, eventIndex: Int) -> [String] {
+        var imagePaths: [String] = []
+
+        appendImageEntries(payload["images"], to: &imagePaths, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndexBase: 0)
+        appendImageEntries(payload["local_images"], to: &imagePaths, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndexBase: 10_000)
+
+        if let content = payload["content"] as? [[String: Any]] {
+            for (contentIndex, item) in content.enumerated() {
+                let imageIndexBase = 20_000 + contentIndex * 100
+                appendImageEntries(item["images"], to: &imagePaths, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndexBase: imageIndexBase)
+                appendImageEntries(item["local_images"], to: &imagePaths, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndexBase: imageIndexBase + 20)
+
+                for key in ["path", "filePath", "file_path", "url", "image", "image_url"] {
+                    appendImageEntries(item[key], to: &imagePaths, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndexBase: imageIndexBase + 40)
+                }
+
+                if let source = item["source"] as? [String: Any] {
+                    appendImageEntries(source, to: &imagePaths, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndexBase: imageIndexBase + 60)
+                }
+            }
+        }
+
+        return imagePaths
+    }
+
+    private func appendImageEntries(
+        _ rawValue: Any?,
+        to imagePaths: inout [String],
+        transcriptPath: String,
+        eventIndex: Int,
+        imageIndexBase: Int
+    ) {
+        guard let rawValue else { return }
+
+        if let values = rawValue as? [Any] {
+            for (offset, value) in values.enumerated() {
+                appendImageEntries(value, to: &imagePaths, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndexBase: imageIndexBase + offset)
+            }
+            return
+        }
+
+        if let dictionary = rawValue as? [String: Any] {
+            for key in ["path", "filePath", "file_path", "url", "image", "image_url", "data"] {
+                appendImageEntries(dictionary[key], to: &imagePaths, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndexBase: imageIndexBase)
+            }
+            return
+        }
+
+        guard let value = rawValue as? String,
+              let path = imagePath(from: value, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndex: imageIndexBase),
+              !imagePaths.contains(path) else {
+            return
+        }
+        imagePaths.append(path)
+    }
+
+    private func imagePath(from value: String, transcriptPath: String, eventIndex: Int, imageIndex: Int) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if trimmed.hasPrefix("data:image/") {
+            return cachedDataImagePath(from: trimmed, transcriptPath: transcriptPath, eventIndex: eventIndex, imageIndex: imageIndex)
+        }
+
+        let expanded: String
+        if trimmed.hasPrefix("file://"), let url = URL(string: trimmed) {
+            expanded = url.path
+        } else if trimmed.hasPrefix("~/") {
+            expanded = (NSHomeDirectory() as NSString).appendingPathComponent(String(trimmed.dropFirst(2)))
+        } else {
+            expanded = trimmed
+        }
+
+        guard FileManager.default.fileExists(atPath: expanded) else { return nil }
+        return cachedLocalImagePath(from: expanded, transcriptPath: transcriptPath)
+    }
+
+    private func cachedDataImagePath(from dataURL: String, transcriptPath: String, eventIndex: Int, imageIndex: Int) -> String? {
+        guard let commaIndex = dataURL.firstIndex(of: ",") else { return nil }
+        let header = String(dataURL[..<commaIndex]).lowercased()
+        guard header.contains(";base64") else { return nil }
+
+        let base64 = String(dataURL[dataURL.index(after: commaIndex)...])
+        guard let data = Data(base64Encoded: base64, options: [.ignoreUnknownCharacters]) else { return nil }
+
+        let fileExtension = imageFileExtension(fromDataURLHeader: header)
+        guard let directory = imageCacheDirectory(for: transcriptPath) else { return nil }
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let filename = "\(digest).\(fileExtension)"
+        let path = (directory as NSString).appendingPathComponent(filename)
+
+        if !FileManager.default.fileExists(atPath: path) {
+            do {
+                try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
+            } catch {
+                DiagnosticLogger.shared.verbose("Codex image cache write failed path=\(path) error=\(error.localizedDescription)")
+                return nil
+            }
+        }
+
+        return path
+    }
+
+    private func cachedLocalImagePath(from sourcePath: String, transcriptPath: String) -> String? {
+        guard let data = FileManager.default.contents(atPath: sourcePath) else { return nil }
+        let fileExtension = imageFileExtension(fromPath: sourcePath)
+        guard let directory = imageCacheDirectory(for: transcriptPath) else { return nil }
+
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let path = (directory as NSString).appendingPathComponent("\(digest).\(fileExtension)")
+        if FileManager.default.fileExists(atPath: path) {
+            return path
+        }
+
+        do {
+            try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
+            return path
+        } catch {
+            DiagnosticLogger.shared.verbose("Codex local image cache write failed path=\(path) error=\(error.localizedDescription)")
+            return sourcePath
+        }
+    }
+
+    private func imageCacheDirectory(for transcriptPath: String) -> String? {
+        let root = AppRuntimePaths.ensureRootDirectory() ?? AppRuntimePaths.rootDirectory
+        let transcriptName = ((transcriptPath as NSString).lastPathComponent as NSString).deletingPathExtension
+        let safeName = sanitizedFilename(transcriptName.isEmpty ? "session" : transcriptName)
+        let directory = ((root as NSString).appendingPathComponent("codex-image-cache") as NSString).appendingPathComponent(safeName)
+
+        do {
+            try FileManager.default.createDirectory(
+                atPath: directory,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700]
+            )
+            return directory
+        } catch {
+            DiagnosticLogger.shared.verbose("Codex image cache directory create failed path=\(directory) error=\(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func imageFileExtension(fromDataURLHeader header: String) -> String {
+        if header.contains("image/jpeg") || header.contains("image/jpg") { return "jpg" }
+        if header.contains("image/gif") { return "gif" }
+        if header.contains("image/tiff") { return "tiff" }
+        if header.contains("image/webp") { return "webp" }
+        if header.contains("image/heic") { return "heic" }
+        return "png"
+    }
+
+    private func imageFileExtension(fromPath path: String) -> String {
+        let value = (path as NSString).pathExtension.lowercased()
+        switch value {
+        case "jpg", "jpeg": return "jpg"
+        case "gif", "tiff", "webp", "heic", "png": return value
+        default: return "png"
+        }
+    }
+
+    private func sanitizedFilename(_ raw: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let scalars = raw.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" }
+        let value = String(scalars).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return value.isEmpty ? "session" : value
     }
 
     private func searchTextForTool(name rawName: String, arguments: String) -> String? {

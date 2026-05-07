@@ -31,10 +31,6 @@ struct GeminiHookInstaller: HookInstalling {
         (geminiDir as NSString).appendingPathComponent("hooks")
     }
 
-    private var settingsPath: String {
-        (geminiDir as NSString).appendingPathComponent("settings.json")
-    }
-
     private var scriptPath: String {
         (hooksDir as NSString).appendingPathComponent("\(Self.scriptName).py")
     }
@@ -44,58 +40,65 @@ struct GeminiHookInstaller: HookInstalling {
     }
 
     var isInstalled: Bool {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let hooks = root["hooks"] as? [String: Any] else {
-            return false
-        }
-
-        // We check if ALL supported events have the EXACT current command.
-        // If even one is missing or has an old path/quoting, we treat it as 
-        // not installed so that `install()` will refresh everything.
         let targetCommand = commandPath
-        for event in supportedHookEvents {
-            guard let definitions = hooks[event] as? [[String: Any]] else { return false }
-            
-            var foundExactMatch = false
-            for definition in definitions {
-                guard let inner = definition["hooks"] as? [[String: Any]] else { continue }
-                if inner.contains(where: { ($0["command"] as? String) == targetCommand }) {
-                    foundExactMatch = true
-                    break
-                }
+        let paths = settingsPaths()
+        guard !paths.isEmpty else { return false }
+
+        for path in paths {
+            guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let hooks = root["hooks"] as? [String: Any] else {
+                return false
             }
-            if !foundExactMatch { return false }
+
+            // We check if ALL supported events have the EXACT current command.
+            // If even one is missing or has an old path/quoting, we treat it as
+            // not installed so that `install()` will refresh everything.
+            for event in supportedHookEvents {
+                guard let definitions = hooks[event] as? [[String: Any]] else { return false }
+
+                var foundExactMatch = false
+                for definition in definitions {
+                    guard let inner = definition["hooks"] as? [[String: Any]] else { continue }
+                    if inner.contains(where: { ($0["command"] as? String) == targetCommand }) {
+                        foundExactMatch = true
+                        break
+                    }
+                }
+                if !foundExactMatch { return false }
+            }
         }
 
         return true
     }
 
     func install() async throws -> HookInstallResult {
+        let targetPaths = settingsPaths()
         let snapshots = [
-            FileSnapshot.capture(at: settingsPath),
             FileSnapshot.capture(at: scriptPath),
-        ]
+        ] + targetPaths.map(FileSnapshot.capture)
 
         do {
-            var root = try readSettingsJSON() ?? [:]
-            var hooks = root["hooks"] as? [String: Any] ?? [:]
+            for path in targetPaths {
+                var root = try readSettingsJSON(at: path) ?? [:]
+                var hooks = root["hooks"] as? [String: Any] ?? [:]
 
-            pruneManagedHooks(from: &hooks)
+                pruneManagedHooks(from: &hooks)
 
-            for event in supportedHookEvents {
-                var definitions = hooks[event] as? [[String: Any]] ?? []
-                definitions.append([
-                    "hooks": [[
-                        "type": "command",
-                        "command": commandPath,
-                    ]]
-                ])
-                hooks[event] = definitions
+                for event in supportedHookEvents {
+                    var definitions = hooks[event] as? [[String: Any]] ?? []
+                    definitions.append([
+                        "hooks": [[
+                            "type": "command",
+                            "command": commandPath,
+                        ]]
+                    ])
+                    hooks[event] = definitions
+                }
+
+                root["hooks"] = hooks
+                try writeSettingsJSON(root, at: path)
             }
-
-            root["hooks"] = hooks
-            try writeSettingsJSON(root)
             HookInstallerUtils.removeScript(at: scriptPath)
         } catch {
             for snapshot in snapshots {
@@ -108,30 +111,29 @@ struct GeminiHookInstaller: HookInstalling {
     }
 
     func uninstall() async throws -> HookInstallResult {
+        let targetPaths = settingsPaths()
         let snapshots = [
-            FileSnapshot.capture(at: settingsPath),
             FileSnapshot.capture(at: scriptPath),
-        ]
+        ] + targetPaths.map(FileSnapshot.capture)
 
         do {
             HookInstallerUtils.removeScript(at: scriptPath)
-            guard FileManager.default.fileExists(atPath: settingsPath) else {
-                return .success
-            }
 
-            guard var root = try readSettingsJSON(),
-                  var hooks = root["hooks"] as? [String: Any] else {
-                throw HookError.jsonParseError
-            }
+            for path in targetPaths where FileManager.default.fileExists(atPath: path) {
+                guard var root = try readSettingsJSON(at: path),
+                      var hooks = root["hooks"] as? [String: Any] else {
+                    throw HookError.jsonParseError
+                }
 
-            pruneManagedHooks(from: &hooks)
-            if hooks.isEmpty {
-                root.removeValue(forKey: "hooks")
-            } else {
-                root["hooks"] = hooks
-            }
+                pruneManagedHooks(from: &hooks)
+                if hooks.isEmpty {
+                    root.removeValue(forKey: "hooks")
+                } else {
+                    root["hooks"] = hooks
+                }
 
-            try writeSettingsJSON(root)
+                try writeSettingsJSON(root, at: path)
+            }
         } catch {
             for snapshot in snapshots {
                 try? snapshot.restore()
@@ -142,23 +144,52 @@ struct GeminiHookInstaller: HookInstalling {
         return .success
     }
 
-    private func readSettingsJSON() throws -> [String: Any]? {
-        guard FileManager.default.fileExists(atPath: settingsPath) else {
+    private func readSettingsJSON(at path: String) throws -> [String: Any]? {
+        guard FileManager.default.fileExists(atPath: path) else {
             return nil
         }
 
-        let data = try Data(contentsOf: URL(fileURLWithPath: settingsPath))
+        let data = try Data(contentsOf: URL(fileURLWithPath: path))
         guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw HookError.jsonParseError
         }
         return root
     }
 
-    private func writeSettingsJSON(_ root: [String: Any]) throws {
+    private func writeSettingsJSON(_ root: [String: Any], at path: String) throws {
         let fm = FileManager.default
-        try fm.createDirectory(atPath: geminiDir, withIntermediateDirectories: true)
+        let directory = (path as NSString).deletingLastPathComponent
+        try fm.createDirectory(atPath: directory, withIntermediateDirectories: true)
         let data = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
-        try data.write(to: URL(fileURLWithPath: settingsPath), options: .atomic)
+        try data.write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
+
+    private func settingsPaths() -> [String] {
+        var paths: [String] = [GeminiAuthStore.settingsPath(forHomePath: geminiDir)]
+        let fm = FileManager.default
+        let rootURL = managedHomesRootURL()
+        if let contents = try? fm.contentsOfDirectory(
+            at: rootURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) {
+            for candidate in contents.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+                guard let values = try? candidate.resourceValues(forKeys: [.isDirectoryKey]),
+                      values.isDirectory == true else { continue }
+                paths.append(GeminiAuthStore.settingsPath(forHomePath: candidate.path))
+            }
+        }
+
+        var seen: Set<String> = []
+        return paths.filter { seen.insert($0).inserted }
+    }
+
+    private func managedHomesRootURL() -> URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        return base
+            .appendingPathComponent("ClaudeStatistics", isDirectory: true)
+            .appendingPathComponent("managed-gemini-homes", isDirectory: true)
     }
 
     private func pruneManagedHooks(from hooks: inout [String: Any]) {
@@ -170,7 +201,7 @@ struct GeminiHookInstaller: HookInstalling {
                 }
 
                 let retained = inner.filter {
-                    !isCurrentRuntimeHookCommand($0["command"] as? String ?? "")
+                    !isManagedHookCommand($0["command"] as? String ?? "")
                 }
                 guard !retained.isEmpty else { return nil }
 
@@ -187,19 +218,37 @@ struct GeminiHookInstaller: HookInstalling {
         }
     }
 
-    private func isCurrentRuntimeHookCommand(_ command: String) -> Bool {
+    private func isManagedHookCommand(_ command: String) -> Bool {
         let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
               trimmed.contains("--claude-stats-hook-provider \(providerId)") else {
             return false
         }
 
-        let currentRoot = AppRuntimePaths.rootDirectory
-        if trimmed.contains("\(currentRoot)/") || trimmed.contains("\(HookInstallerUtils.shellQuoted(currentRoot))/") {
+        if trimmed == commandPath {
             return true
         }
 
-        return trimmed == commandPath
+        for channel in runtimeChannels {
+            let root = (NSHomeDirectory() as NSString).appendingPathComponent(channel.rootFolderName)
+            if trimmed.contains("\(root)/") || trimmed.contains("\(HookInstallerUtils.shellQuoted(root))/") {
+                return true
+            }
+
+            let wrapperPath = ((root as NSString).appendingPathComponent("bin") as NSString)
+                .appendingPathComponent(channel.hookBinaryName)
+            if trimmed == "\(wrapperPath) --claude-stats-hook-provider \(providerId)" {
+                return true
+            }
+        }
+
+        return false
     }
 
+    private var runtimeChannels: [(rootFolderName: String, hookBinaryName: String)] {
+        [
+            (".claude-statistics", "claude-stats-hook"),
+            (".claude-statistics-debug", "claude-stats-hook-debug"),
+        ]
+    }
 }

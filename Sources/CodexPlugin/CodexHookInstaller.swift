@@ -261,7 +261,7 @@ struct CodexHookInstaller: HookInstalling {
 
             let retained = inner.filter { hook in
                 let command = hook["command"] as? String ?? ""
-                return !isCurrentRuntimeHookCommand(command)
+                return !isManagedHookCommand(command)
             }
             guard !retained.isEmpty else {
                 return nil
@@ -273,19 +273,38 @@ struct CodexHookInstaller: HookInstalling {
         }
     }
 
-    private func isCurrentRuntimeHookCommand(_ command: String) -> Bool {
+    private func isManagedHookCommand(_ command: String) -> Bool {
         let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
               trimmed.contains("--claude-stats-hook-provider \(providerId)") else {
             return false
         }
 
-        let currentRoot = AppRuntimePaths.rootDirectory
-        if trimmed.contains("\(currentRoot)/") || trimmed.contains("\(HookInstallerUtils.shellQuoted(currentRoot))/") {
+        if trimmed == commandPath {
             return true
         }
 
-        return trimmed == commandPath
+        for channel in runtimeChannels {
+            let root = (NSHomeDirectory() as NSString).appendingPathComponent(channel.rootFolderName)
+            if trimmed.contains("\(root)/") || trimmed.contains("\(HookInstallerUtils.shellQuoted(root))/") {
+                return true
+            }
+
+            let wrapperPath = ((root as NSString).appendingPathComponent("bin") as NSString)
+                .appendingPathComponent(channel.hookBinaryName)
+            if trimmed == "\(wrapperPath) --claude-stats-hook-provider \(providerId)" {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private var runtimeChannels: [(rootFolderName: String, hookBinaryName: String)] {
+        [
+            (".claude-statistics", "claude-stats-hook"),
+            (".claude-statistics-debug", "claude-stats-hook-debug"),
+        ]
     }
 
     private func removeHooksDirIfEmpty() throws {
