@@ -145,7 +145,7 @@ targets:
           id: com.openai.codex
           kind: provider
           displayName: Codex
-          version: 1.0.2
+          version: 1.0.3
           minHostAPIVersion: 0.1.0
           permissions:
             - filesystemHome

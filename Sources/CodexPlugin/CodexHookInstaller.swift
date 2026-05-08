@@ -164,19 +164,89 @@ struct CodexHookInstaller: HookInstalling {
         try fm.createDirectory(atPath: codexDir, withIntermediateDirectories: true)
 
         let existing = (try? String(contentsOfFile: configPath, encoding: .utf8)) ?? ""
-        let updated = Self.updatedConfigContentEnablingCodexHooks(existing)
+        let featureKey = Self.codexHooksFeatureKey(for: existing)
+        let updated = Self.updatedConfigContentEnablingCodexHooks(existing, featureKey: featureKey)
         guard updated != existing else { return }
         try updated.write(toFile: configPath, atomically: true, encoding: .utf8)
     }
 
-    private static func updatedConfigContentEnablingCodexHooks(_ content: String) -> String {
+    private enum CodexHooksFeatureKey: String {
+        case hooks
+        case codexHooks = "codex_hooks"
+    }
+
+    private static func codexHooksFeatureKey(for content: String) -> CodexHooksFeatureKey {
         let normalized = content.isEmpty || content.hasSuffix("\n") ? content : "\(content)\n"
+        guard let featuresRange = normalized.range(of: #"(?m)^\[features\]\s*$"#, options: .regularExpression) else {
+            return installedCodexVersionUsesLegacyHooksKey() ? .codexHooks : .hooks
+        }
+
+        let suffix = normalized[featuresRange.upperBound...]
+        let nextSectionRange = suffix.range(of: #"(?m)^\["#, options: .regularExpression)
+        let sectionEnd = nextSectionRange?.lowerBound ?? normalized.endIndex
+        let featureBodyRange = featuresRange.upperBound..<sectionEnd
+
+        if normalized.range(of: featureLinePattern(for: CodexHooksFeatureKey.hooks.rawValue), options: .regularExpression, range: featureBodyRange) != nil {
+            return .hooks
+        }
+        if normalized.range(of: featureLinePattern(for: CodexHooksFeatureKey.codexHooks.rawValue), options: .regularExpression, range: featureBodyRange) != nil {
+            return .codexHooks
+        }
+
+        return installedCodexVersionUsesLegacyHooksKey() ? .codexHooks : .hooks
+    }
+
+    private static func installedCodexVersionUsesLegacyHooksKey() -> Bool {
+        guard let version = installedCodexVersion() else { return false }
+        return compare(version, to: [0, 129, 0]) == .orderedAscending
+    }
+
+    private static func installedCodexVersion() -> [Int]? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["codex", "--version"]
+
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return nil
+        }
+
+        guard process.terminationStatus == 0 else { return nil }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        guard let text = String(data: data, encoding: .utf8),
+              let match = text.range(of: #"\d+\.\d+\.\d+"#, options: .regularExpression) else {
+            return nil
+        }
+
+        return text[match].split(separator: ".").compactMap { Int($0) }
+    }
+
+    private static func compare(_ lhs: [Int], to rhs: [Int]) -> ComparisonResult {
+        let count = max(lhs.count, rhs.count)
+        for index in 0..<count {
+            let left = index < lhs.count ? lhs[index] : 0
+            let right = index < rhs.count ? rhs[index] : 0
+            if left < right { return .orderedAscending }
+            if left > right { return .orderedDescending }
+        }
+        return .orderedSame
+    }
+
+    private static func updatedConfigContentEnablingCodexHooks(_ content: String, featureKey: CodexHooksFeatureKey) -> String {
+        let normalized = content.isEmpty || content.hasSuffix("\n") ? content : "\(content)\n"
+        let keyName = featureKey.rawValue
 
         guard let featuresRange = normalized.range(of: #"(?m)^\[features\]\s*$"#, options: .regularExpression) else {
             if normalized.isEmpty {
-                return "[features]\ncodex_hooks = true\n"
+                return "[features]\n\(keyName) = true\n"
             }
-            return "\(normalized)\n[features]\ncodex_hooks = true\n"
+            return "\(normalized)\n[features]\n\(keyName) = true\n"
         }
 
         let suffix = normalized[featuresRange.upperBound...]
@@ -185,34 +255,79 @@ struct CodexHookInstaller: HookInstalling {
         let featureBodyRange = featuresRange.upperBound..<sectionEnd
         let featureBody = String(normalized[featureBodyRange])
 
-        if let codexHooksRange = normalized.range(
-            of: #"(?m)^([ \t]*codex_hooks[ \t]*=[ \t]*)(true|false)([ \t]*(#.*)?)$"#,
+        if let existingKeyRange = normalized.range(
+            of: featureLinePattern(for: keyName),
             options: .regularExpression,
             range: featureBodyRange
         ) {
-            let existingLine = String(normalized[codexHooksRange])
-            let leadingWhitespace = String(existingLine.prefix { $0 == " " || $0 == "\t" })
-            let comment = existingLine.firstIndex(of: "#").map { String(existingLine[$0...]).trimmingCharacters(in: .whitespaces) }
-            var replacement = "\(leadingWhitespace)codex_hooks = true"
-            if let comment, !comment.isEmpty {
-                replacement.append(" \(comment)")
+            var updated = replacingFeatureLine(in: normalized, lineRange: existingKeyRange, keyName: keyName)
+            if featureKey == .hooks {
+                updated = removingFeatureLine(in: updated, keyName: CodexHooksFeatureKey.codexHooks.rawValue)
             }
-            if existingLine == replacement {
-                return content
-            }
-
-            var updated = normalized
-            updated.replaceSubrange(codexHooksRange, with: replacement)
-            return updated
+            return updated == normalized ? content : updated
         }
 
-        var insertion = "codex_hooks = true\n"
+        if featureKey == .hooks,
+           let legacyKeyRange = normalized.range(
+                of: featureLinePattern(for: CodexHooksFeatureKey.codexHooks.rawValue),
+                options: .regularExpression,
+                range: featureBodyRange
+           ) {
+            return replacingFeatureLine(in: normalized, lineRange: legacyKeyRange, keyName: keyName)
+        }
+
+        var insertion = "\(keyName) = true\n"
         if !featureBody.isEmpty, !featureBody.hasPrefix("\n") {
             insertion = "\n\(insertion)"
         }
 
         var updated = normalized
         updated.insert(contentsOf: insertion, at: sectionEnd)
+        return updated
+    }
+
+    private static func featureLinePattern(for keyName: String) -> String {
+        let escaped = NSRegularExpression.escapedPattern(for: keyName)
+        return #"(?m)^([ \t]*"# + escaped + #"[ \t]*=[ \t]*)(true|false)([ \t]*(#.*)?)$"#
+    }
+
+    private static func replacingFeatureLine(
+        in normalized: String,
+        lineRange: Range<String.Index>,
+        keyName: String
+    ) -> String {
+        let existingLine = String(normalized[lineRange])
+        let leadingWhitespace = String(existingLine.prefix { $0 == " " || $0 == "\t" })
+        let comment = existingLine.firstIndex(of: "#").map { String(existingLine[$0...]).trimmingCharacters(in: .whitespaces) }
+        var replacement = "\(leadingWhitespace)\(keyName) = true"
+        if let comment, !comment.isEmpty {
+            replacement.append(" \(comment)")
+        }
+        var updated = normalized
+        updated.replaceSubrange(lineRange, with: replacement)
+        return updated
+    }
+
+    private static func removingFeatureLine(in content: String, keyName: String) -> String {
+        guard let featuresRange = content.range(of: #"(?m)^\[features\]\s*$"#, options: .regularExpression) else {
+            return content
+        }
+
+        let suffix = content[featuresRange.upperBound...]
+        let nextSectionRange = suffix.range(of: #"(?m)^\["#, options: .regularExpression)
+        let sectionEnd = nextSectionRange?.lowerBound ?? content.endIndex
+        let featureBodyRange = featuresRange.upperBound..<sectionEnd
+
+        guard let lineRange = content.range(
+            of: featureLinePattern(for: keyName) + #"\n?"#,
+            options: .regularExpression,
+            range: featureBodyRange
+        ) else {
+            return content
+        }
+
+        var updated = content
+        updated.removeSubrange(lineRange)
         return updated
     }
 
