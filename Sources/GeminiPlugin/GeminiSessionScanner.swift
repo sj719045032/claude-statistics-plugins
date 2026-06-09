@@ -36,7 +36,8 @@ final class GeminiSessionScanner {
                 options: [.skipsHiddenFiles]
             )) ?? []
 
-            for chatFile in chatFiles where chatFile.pathExtension == "json" {
+            let supportedExtensions: Set<String> = ["json", "jsonl"]
+            for chatFile in chatFiles where supportedExtensions.contains(chatFile.pathExtension) {
                 guard let stored = GeminiTranscriptParser.shared.loadSession(at: chatFile.path),
                       let attrs = try? fm.attributesOfItem(atPath: chatFile.path) else {
                     continue

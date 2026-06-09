@@ -52,7 +52,7 @@ final class GeminiProvider: SessionDataProvider, UsageProvider, AccountProvider,
         return FSEventsWatcher(
             path: path,
             debounceSeconds: 2.0,
-            fileFilter: { $0.hasSuffix(".json") && $0.contains("/chats/") },
+            fileFilter: { ($0.hasSuffix(".json") || $0.hasSuffix(".jsonl")) && $0.contains("/chats/") },
             onChange: onChange
         )
     }
@@ -60,12 +60,12 @@ final class GeminiProvider: SessionDataProvider, UsageProvider, AccountProvider,
     func changedSessionIds(for changedPaths: Set<String>) -> Set<String> {
         var ids: Set<String> = []
         for path in changedPaths {
-            guard path.hasSuffix(".json"),
+            guard (path.hasSuffix(".json") || path.hasSuffix(".jsonl")),
                   path.contains("/chats/"),
-                  let session = GeminiTranscriptParser.shared.loadSession(at: path) else {
+                  let sid = GeminiTranscriptParser.shared.sessionId(at: path) else {
                 continue
             }
-            ids.insert(session.sessionId)
+            ids.insert(sid)
         }
         return ids
     }
@@ -76,6 +76,16 @@ final class GeminiProvider: SessionDataProvider, UsageProvider, AccountProvider,
 
     func parseSession(at path: String) -> SessionStats {
         GeminiTranscriptParser.shared.parseSession(at: path)
+    }
+
+    func parseSessionIncremental(
+        fromData data: Data, fromOffset: Int64,
+        existingStats: SessionStats, path: String
+    ) -> IncrementalParseResult? {
+        GeminiTranscriptParser.shared.parseSessionIncremental(
+            fromData: data, fromOffset: fromOffset,
+            existingStats: existingStats, path: path
+        )
     }
 
     func parseMessages(at path: String) -> [TranscriptDisplayMessage] {

@@ -7,7 +7,31 @@ final class GeminiTranscriptParser {
 
     private init() {}
 
+    func sessionId(at path: String) -> String? {
+        if path.hasSuffix(".jsonl") {
+            return sessionIdFromJSONL(at: path)
+        }
+        guard let data = FileManager.default.contents(atPath: path),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return json["sessionId"] as? String
+    }
+
+    private func sessionIdFromJSONL(at path: String) -> String? {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { handle.closeFile() }
+        guard let firstLine = handle.readData(ofLength: 4096).split(separator: 0x0A).first,
+              let json = try? JSONSerialization.jsonObject(with: Data(firstLine)) as? [String: Any] else { return nil }
+        return json["sessionId"] as? String
+    }
+
     func loadSession(at path: String) -> GeminiChatSession? {
+        if path.hasSuffix(".jsonl") {
+            return loadSessionFromJSONL(at: path)
+        }
+        return loadSessionFromJSON(at: path)
+    }
+
+    private func loadSessionFromJSON(at path: String) -> GeminiChatSession? {
         guard let data = FileManager.default.contents(atPath: path),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
@@ -23,6 +47,74 @@ final class GeminiTranscriptParser {
             lastUpdated: parseDate(json["lastUpdated"] as? String),
             summary: normalizedText(json["summary"]),
             messages: messages
+        )
+    }
+
+    private func loadSessionFromJSONL(at path: String) -> GeminiChatSession? {
+        guard let data = FileManager.default.contents(atPath: path) else { return nil }
+        return loadSessionFromJSONLData(data, fileSessionId: ((path as NSString).lastPathComponent as NSString).deletingPathExtension)
+    }
+
+    func loadSessionFromJSONLData(_ data: Data, fileSessionId: String) -> GeminiChatSession? {
+        var sessionId: String?
+        var projectHash: String?
+        var startTime: Date?
+        var lastUpdated: Date?
+        var summary: String?
+        var messagesById: [(String, GeminiChatMessage)] = []
+        var seenIds = Set<String>()
+
+        data.withUnsafeBytes { buffer in
+            guard let base = buffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+            let count = buffer.count
+            var pos = 0
+            while pos < count {
+                var end = pos
+                while end < count && base[end] != 0x0A { end += 1 }
+                guard end > pos else { pos = end + 1; continue }
+                let lineData = Data(bytes: base + pos, count: end - pos)
+                pos = end + 1
+
+                guard let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else { continue }
+
+                if json["$set"] != nil {
+                    if let set = json["$set"] as? [String: Any] {
+                        if let updated = set["lastUpdated"] as? String {
+                            lastUpdated = parseDate(updated)
+                        }
+                    }
+                    continue
+                }
+
+                if sessionId == nil, let sid = json["sessionId"] as? String {
+                    sessionId = sid
+                    projectHash = json["projectHash"] as? String
+                    startTime = parseDate(json["startTime"] as? String)
+                    lastUpdated = parseDate(json["lastUpdated"] as? String)
+                    summary = normalizedText(json["summary"])
+                    continue
+                }
+
+                guard let msg = parseMessage(json) else { continue }
+                if seenIds.contains(msg.id) {
+                    if let idx = messagesById.lastIndex(where: { $0.0 == msg.id }) {
+                        messagesById[idx] = (msg.id, msg)
+                    }
+                } else {
+                    seenIds.insert(msg.id)
+                    messagesById.append((msg.id, msg))
+                }
+            }
+        }
+
+        guard let sid = sessionId else { return nil }
+        return GeminiChatSession(
+            sessionId: sid,
+            projectHash: projectHash,
+            startTime: startTime,
+            lastUpdated: lastUpdated,
+            summary: summary,
+            messages: messagesById.map(\.1)
         )
     }
 
@@ -168,6 +260,122 @@ final class GeminiTranscriptParser {
 
         stats.precomputeAggregates()
         return stats
+    }
+
+    func parseSessionIncremental(
+        fromData data: Data, fromOffset: Int64,
+        existingStats: SessionStats, path: String
+    ) -> IncrementalParseResult? {
+        if path.hasSuffix(".jsonl") {
+            return parseSessionIncrementalJSONL(fromData: data, fromOffset: fromOffset, existingStats: existingStats)
+        }
+        return nil
+    }
+
+    private func parseSessionIncrementalJSONL(
+        fromData data: Data, fromOffset: Int64,
+        existingStats: SessionStats
+    ) -> IncrementalParseResult? {
+        let startOffset = Int(fromOffset)
+        guard startOffset < data.count else { return nil }
+
+        var stats = existingStats
+        var activeModel = stats.model ?? "Unknown"
+        var seenIds = Set<String>()
+        var hasNewData = false
+
+        data.withUnsafeBytes { buffer in
+            guard let base = buffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+            let count = buffer.count
+            var pos = startOffset
+            while pos < count {
+                var end = pos
+                while end < count && base[end] != 0x0A { end += 1 }
+                guard end > pos else { pos = end + 1; continue }
+                let lineData = Data(bytes: base + pos, count: end - pos)
+                pos = end + 1
+
+                guard let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else { continue }
+                if json["$set"] != nil || json["sessionId"] != nil { continue }
+                guard let msg = parseMessage(json) else { continue }
+
+                if seenIds.contains(msg.id) { continue }
+                seenIds.insert(msg.id)
+                hasNewData = true
+
+                if let timestamp = msg.timestamp {
+                    if stats.endTime == nil || timestamp > stats.endTime! { stats.endTime = timestamp }
+                }
+
+                switch msg.type {
+                case "user":
+                    guard let cleaned = cleanUserText(msg.text) else { continue }
+                    stats.userMessageCount += 1
+                    stats.lastPrompt = truncate(cleaned, limit: 200)
+                    stats.lastPromptAt = msg.timestamp
+                    if let timestamp = msg.timestamp {
+                        stats.fiveMinSlices[fiveMinuteKey(for: timestamp), default: DaySlice()].messageCount += 1
+                    }
+
+                case "gemini":
+                    stats.assistantMessageCount += 1
+                    if let model = normalizedText(msg.model) {
+                        activeModel = model
+                        stats.model = model
+                    }
+                    if let text = normalizedText(msg.text) {
+                        stats.lastOutputPreview = truncate(text, limit: Self.assistantPreviewLimit)
+                        stats.lastOutputPreviewAt = msg.timestamp
+                    } else if let toolCall = msg.toolCalls.last {
+                        stats.lastOutputPreview = truncate(toolSummary(for: toolCall), limit: Self.assistantPreviewLimit)
+                        stats.lastOutputPreviewAt = msg.timestamp
+                    }
+
+                    let sliceKey = msg.timestamp.map(fiveMinuteKey(for:))
+                    if let tokens = msg.tokens, let sliceKey {
+                        let outputTokens = tokens.billedOutputTokens
+                        let contextTokens = tokens.inputTokens + tokens.cachedTokens
+                        if contextTokens > 0 { stats.contextTokens = contextTokens }
+
+                        var slice = stats.fiveMinSlices[sliceKey] ?? DaySlice()
+                        slice.totalInputTokens += tokens.inputTokens
+                        slice.totalOutputTokens += outputTokens
+                        slice.cacheReadTokens += tokens.cachedTokens
+                        slice.messageCount += 1
+
+                        var modelStats = slice.modelBreakdown[activeModel, default: ModelTokenStats()]
+                        modelStats.inputTokens += tokens.inputTokens
+                        modelStats.outputTokens += outputTokens
+                        modelStats.cacheReadTokens += tokens.cachedTokens
+                        modelStats.messageCount += 1
+                        slice.modelBreakdown[activeModel] = modelStats
+                        stats.fiveMinSlices[sliceKey] = slice
+                    } else if let sliceKey {
+                        stats.fiveMinSlices[sliceKey, default: DaySlice()].messageCount += 1
+                    }
+
+                    if let sliceKey {
+                        for toolCall in msg.toolCalls {
+                            let toolName = normalizedToolName(toolCall)
+                            stats.fiveMinSlices[sliceKey, default: DaySlice()].toolUseCounts[toolName, default: 0] += 1
+                        }
+                    }
+                    if let toolCall = msg.toolCalls.last {
+                        stats.lastToolName = normalizedToolName(toolCall)
+                        stats.lastToolSummary = toolActivitySummary(for: toolCall)
+                        stats.lastToolDetail = toolDetail(for: toolCall).map { truncate($0, limit: 400) }
+                        stats.lastToolAt = msg.timestamp
+                    }
+
+                default:
+                    continue
+                }
+            }
+        }
+
+        guard hasNewData else { return nil }
+        stats.precomputeAggregates()
+        return IncrementalParseResult(stats: stats, newOffset: Int64(data.count))
     }
 
     func parseMessages(at path: String) -> [TranscriptDisplayMessage] {

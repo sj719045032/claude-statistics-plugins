@@ -89,6 +89,16 @@ final class CodexProvider: SessionDataProvider, UsageProvider, AccountProvider, 
         CodexTranscriptParser.shared.parseSession(at: path)
     }
 
+    func parseSessionIncremental(
+        fromData data: Data, fromOffset: Int64,
+        existingStats: SessionStats, path: String
+    ) -> IncrementalParseResult? {
+        CodexTranscriptParser.shared.parseSessionIncremental(
+            fromData: data, fromOffset: fromOffset,
+            existingStats: existingStats, path: path
+        )
+    }
+
     func parseMessages(at path: String) -> [TranscriptDisplayMessage] {
         CodexTranscriptParser.shared.parseMessages(at: path)
     }

@@ -218,6 +218,130 @@ final class CodexTranscriptParser {
         return stats
     }
 
+    func parseSessionIncremental(
+        fromData data: Data,
+        fromOffset: Int64,
+        existingStats: SessionStats,
+        path: String
+    ) -> IncrementalParseResult? {
+        let offset = Int(fromOffset)
+        guard offset > 0, offset < data.count else { return nil }
+
+        var stats = existingStats
+        var activeModel = stats.model
+        var userMessageTimes: [Date] = []
+        var toolUseTimes: [(Date, String)] = []
+
+        let tail = data[data.index(data.startIndex, offsetBy: offset)...]
+        let content = String(decoding: tail, as: UTF8.self)
+
+        for line in content.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty,
+                  let lineData = trimmed.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
+                  let type = json["type"] as? String else { continue }
+
+            let payload = json["payload"] as? [String: Any] ?? [:]
+            let timestamp = TranscriptParserCommons.parseISOTimestamp(json["timestamp"] as? String)
+
+            if let ts = timestamp {
+                if stats.endTime == nil || ts > stats.endTime! { stats.endTime = ts }
+            }
+
+            switch type {
+            case "turn_context":
+                if let model = payload["model"] as? String, !model.isEmpty {
+                    activeModel = model
+                    stats.model = model
+                }
+
+            case "response_item":
+                guard let payloadType = payload["type"] as? String else { continue }
+                if payloadType == "message" {
+                    let role = payload["role"] as? String
+                    if role == "user", let text = extractMessageText(from: payload), let cleaned = cleanUserText(text) {
+                        stats.userMessageCount += 1
+                        stats.lastPrompt = truncate(cleaned, limit: 200)
+                        stats.lastPromptAt = timestamp
+                        if let ts = timestamp { userMessageTimes.append(fiveMinuteKey(for: ts)) }
+                    } else if role == "assistant" {
+                        stats.assistantMessageCount += 1
+                        if let text = extractMessageText(from: payload) {
+                            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmed.isEmpty {
+                                let truncated = truncate(trimmed, limit: Self.assistantPreviewLimit)
+                                if isCodexCommentary(payload: payload) {
+                                    stats.latestProgressNote = truncated
+                                    stats.latestProgressNoteAt = timestamp
+                                } else {
+                                    stats.lastOutputPreview = truncated
+                                    stats.lastOutputPreviewAt = timestamp
+                                }
+                            }
+                        }
+                    }
+                } else if payloadType == "function_call",
+                          let rawName = payload["name"] as? String,
+                          let ts = timestamp {
+                    let arguments = (payload["arguments"] as? String) ?? ""
+                    let descriptor = toolDescriptor(name: rawName, arguments: arguments)
+                    stats.lastToolName = descriptor.toolName
+                    stats.lastToolSummary = toolActivitySummary(for: descriptor)
+                    stats.lastToolDetail = descriptor.detail.map { truncate($0, limit: 400) }
+                    stats.lastToolAt = ts
+                    toolUseTimes.append((fiveMinuteKey(for: ts), descriptor.toolName))
+                }
+
+            case "event_msg":
+                if isCodexAgentCommentary(payload: payload),
+                   let text = commentaryText(from: payload) {
+                    let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !t.isEmpty {
+                        stats.latestProgressNote = truncate(t, limit: Self.assistantPreviewLimit)
+                        stats.latestProgressNoteAt = timestamp
+                    }
+                }
+                // Use last_token_usage (per-request delta) directly for incremental
+                guard let info = payload["info"] as? [String: Any],
+                      let lastUsage = info["last_token_usage"] as? [String: Any],
+                      let delta = UsageSnapshot(json: lastUsage),
+                      delta.totalTokens > 0,
+                      let ts = timestamp else { continue }
+
+                let contextTokens = delta.inputTokens + delta.cachedInputTokens
+                if contextTokens > 0 { stats.contextTokens = contextTokens }
+
+                let sliceKey = fiveMinuteKey(for: ts)
+                var slice = stats.fiveMinSlices[sliceKey] ?? DaySlice()
+                slice.totalInputTokens += delta.inputTokens
+                slice.totalOutputTokens += delta.outputTokens
+                slice.cacheReadTokens += delta.cachedInputTokens
+                slice.messageCount += 1
+                var ms = slice.modelBreakdown[activeModel, default: ModelTokenStats()]
+                ms.inputTokens += delta.inputTokens
+                ms.outputTokens += delta.outputTokens
+                ms.cacheReadTokens += delta.cachedInputTokens
+                ms.messageCount += 1
+                slice.modelBreakdown[activeModel] = ms
+                stats.fiveMinSlices[sliceKey] = slice
+
+            default:
+                continue
+            }
+        }
+
+        for time in userMessageTimes {
+            stats.fiveMinSlices[time, default: DaySlice()].messageCount += 1
+        }
+        for (time, toolName) in toolUseTimes {
+            stats.fiveMinSlices[time, default: DaySlice()].toolUseCounts[toolName, default: 0] += 1
+        }
+
+        stats.precomputeAggregates()
+        return IncrementalParseResult(stats: stats, newOffset: Int64(data.count))
+    }
+
     func parseMessages(at path: String) -> [TranscriptDisplayMessage] {
         var messages: [TranscriptDisplayMessage] = []
         var toolMessageIndices: [String: Int] = [:]
