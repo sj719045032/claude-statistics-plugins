@@ -1,7 +1,19 @@
 import Foundation
 import ClaudeStatisticsKit
 
-/// Fetches GPT / Codex pricing from OpenAI's official pricing docs page.
+/// Fetches GPT / Codex pricing from OpenAI's official pricing docs page
+/// and parses every model row into structured rates.
+///
+/// The page is server-rendered HTML: once tags are stripped, each model
+/// renders as a flat row
+///
+///   "<model-id> $<input> $<cached> $<output> …extra tier columns…"
+///
+/// The same model id appears in several tables (standard, then batch /
+/// priority tiers). The **first** occurrence is the standard rate, so we
+/// keep only the first match per id. Cells can be a dash ("-"/"—") when a
+/// model has no cached-input rate (e.g. the `-pro` models), which we treat
+/// as "fall back to 10% of input".
 final class CodexPricingFetchService: ProviderPricingFetching {
     static let shared = CodexPricingFetchService()
 
@@ -31,53 +43,59 @@ final class CodexPricingFetchService: ProviderPricingFetching {
         return try parsePricingFromHTML(html)
     }
 
-    private func parsePricingFromHTML(_ html: String) throws -> [String: ModelPricingRates] {
+    func parsePricingFromHTML(_ html: String) throws -> [String: ModelPricingRates] {
         let compact = html
             .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
             .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&#36;", with: "$")
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
 
-        let specs: [(pattern: String, modelIds: [String])] = [
-            (#"gpt-5\.3-codex\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.3-codex"]),
-        ]
+        // A price cell is either "$<number>" or a dash placeholder ("-"/"—"/"–").
+        let cell = #"(?:\$([0-9][0-9.]*)|[—–-])"#
+        // Model id (gpt-5, gpt-5.5, gpt-5.3-codex, gpt-5.5-pro, …) followed by
+        // its first three columns: input, cached input, output.
+        let pattern = #"(gpt-[0-9][0-9a-z.\-]*)\s+"# + cell + #"\s+"# + cell + #"\s+"# + cell
+
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            throw PricingFetchError.parseError("Invalid pricing regex")
+        }
 
         var results: [String: ModelPricingRates] = [:]
-        for spec in specs {
-            if let pricing = firstMatchPricing(in: compact, pattern: spec.pattern) {
-                for id in spec.modelIds {
-                    results[id] = pricing
-                }
+        let ns = compact as NSString
+
+        regex.enumerateMatches(in: compact, range: NSRange(location: 0, length: ns.length)) { match, _, _ in
+            guard let match = match else { return }
+            let id = ns.substring(with: match.range(at: 1))
+            // Keep the first (standard-rate) row only; later rows are batch /
+            // priority tiers for the same model.
+            guard results[id] == nil else { return }
+
+            func number(_ index: Int) -> Double? {
+                let range = match.range(at: index)
+                guard range.location != NSNotFound else { return nil }
+                return Double(ns.substring(with: range))
             }
+
+            // group 2 = input, group 3 = cached input, group 4 = output
+            guard let input = number(2), let output = number(4) else { return }
+            let cachedInput = number(3) ?? input * 0.1
+
+            // OpenAI bills cached-input reads at a discount and has no separate
+            // cache-write tier, so map cache-write to the plain input rate and
+            // cache-read to the cached-input rate.
+            results[id] = ModelPricingRates(
+                input: input,
+                output: output,
+                cacheWrite5m: input,
+                cacheWrite1h: input,
+                cacheRead: cachedInput
+            )
         }
 
         guard !results.isEmpty else {
-            throw PricingFetchError.parseError("No Codex pricing data found")
+            throw PricingFetchError.parseError("No OpenAI pricing data found")
         }
 
         return results
-    }
-
-    private func firstMatchPricing(in text: String, pattern: String) -> ModelPricingRates? {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-        guard let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else {
-            return nil
-        }
-
-        let values = (1..<match.numberOfRanges).compactMap { index -> Double? in
-            guard let range = Range(match.range(at: index), in: text) else { return nil }
-            return Double(text[range])
-        }
-        guard values.count >= 2 else { return nil }
-
-        let input = values[0]
-        let cachedInput = values.count >= 3 ? values[1] : input * 0.1
-        let output = values.count >= 3 ? values[2] : values[1]
-        return ModelPricingRates(
-            input: input,
-            output: output,
-            cacheWrite5m: input,
-            cacheWrite1h: input,
-            cacheRead: cachedInput
-        )
     }
 }
