@@ -84,9 +84,54 @@ final class CodexUsageService: ProviderUsageSource {
     // MARK: - Remote API
 
     private func fetchRemoteUsage(creds: CodexCredentials) async throws -> UsageData {
+        // Retry transient connectivity failures (slow / throttled cross-border
+        // TLS is the usual cause of "request timed out" on this endpoint).
+        // 429 / 401 / decoding throw from inside and propagate without retry.
+        try await Self.withTransientRetry {
+            try await self.requestUsage(creds: creds)
+        }
+    }
+
+    // MARK: - Transient retry
+
+    /// Run `operation`, retrying only on transient connectivity `URLError`s
+    /// (timeout, refused / lost connection, DNS). Non-`URLError` outcomes —
+    /// e.g. `UsageError.rateLimited` / `.unauthorized` / decoding failures —
+    /// are thrown immediately and never retried.
+    static func withTransientRetry<T>(
+        attempts: Int = 3,
+        backoffSeconds: [UInt64] = [1, 2],
+        _ operation: () async throws -> T
+    ) async throws -> T {
+        var lastError: Error = UsageError.invalidResponse
+        let total = max(1, attempts)
+        for attempt in 0..<total {
+            do {
+                return try await operation()
+            } catch let error as URLError where isTransient(error) {
+                lastError = error
+                guard attempt < total - 1 else { break }
+                let delay = backoffSeconds[min(attempt, backoffSeconds.count - 1)]
+                try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
+            }
+        }
+        throw lastError
+    }
+
+    static func isTransient(_ error: URLError) -> Bool {
+        switch error.code {
+        case .timedOut, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed,
+             .networkConnectionLost, .notConnectedToInternet, .secureConnectionFailed:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func requestUsage(creds: CodexCredentials) async throws -> UsageData {
         var request = URLRequest(url: usageURL)
         request.httpMethod = "GET"
-        request.timeoutInterval = 15
+        request.timeoutInterval = 30
         request.setValue("Bearer \(creds.accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("ClaudeStatistics", forHTTPHeaderField: "User-Agent")
