@@ -38,6 +38,12 @@ final class CodexPricingFetchService: ProviderPricingFetching {
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
 
         let specs: [(pattern: String, modelIds: [String])] = [
+            (#"gpt-5\.5\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.5"]),
+            (#"gpt-5\.5-pro\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.5-pro"]),
+            (#"gpt-5\.4\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.4"]),
+            (#"gpt-5\.4-mini\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.4-mini"]),
+            (#"gpt-5\.4-nano\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.4-nano"]),
+            (#"gpt-5\.4-pro\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.4-pro"]),
             (#"gpt-5\.3-codex\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.3-codex"]),
         ]
 
