@@ -100,6 +100,8 @@ xcodebuild -project ClaudeStatisticsPlugins.xcodeproj \
     -configuration Release \
     SYMROOT="${BUILD_DIR}/Build/Products" \
     OBJROOT="${BUILD_DIR}/Build/Intermediates" \
+    CLANG_ENABLE_EXPLICIT_MODULES=NO \
+    SWIFT_ENABLE_EXPLICIT_MODULES=NO \
     build 2>&1 | grep -E "BUILD SUCCEEDED|BUILD FAILED|error:" | head -5
 
 if [ ! -d "${PRODUCTS_DIR}" ]; then

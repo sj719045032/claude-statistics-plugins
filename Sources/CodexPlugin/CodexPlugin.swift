@@ -52,7 +52,8 @@ public final class CodexPlugin: NSObject, ProviderPlugin, ProviderAccountUIProvi
             resolveToolAlias: { PluginToolAliasStore.canonical($0, for: "codex") },
             postStopExitGrace: 0.25,
             syncsTranscriptToActiveSessions: true,
-            commandFilteredNotchPreview: true
+            commandFilteredNotchPreview: true,
+            activeSessionIdentityPolicy: .providerSession
         )
     }
 
