@@ -12,6 +12,7 @@ struct CodexHookInstaller: HookInstalling {
         "UserPromptSubmit",
         "PreToolUse",
         "PermissionRequest",
+        "ToolPermission",
         "PostToolUse",
         "PostToolUseFailure",
         "Notification",

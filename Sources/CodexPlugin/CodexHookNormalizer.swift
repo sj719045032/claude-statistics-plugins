@@ -11,6 +11,9 @@ import ClaudeStatisticsKit
 ///     HookCLI's socket round-trip waits for the user's decision and
 ///     prints the matching `decision` JSON via the `.codex`
 ///     permission-decision style.
+///   - `ToolPermission` is accepted as a passive permission notice for
+///     Codex builds that report permission prompts through that hook
+///     name instead of `PermissionRequest`.
 ///   - `tool_input` arrives as either a dict or a bare string command
 ///     — normalised here into a dict shape downstream code can read
 ///     uniformly.
@@ -39,6 +42,7 @@ final class CodexHookNormalizer {
             "UserPromptSubmit",
             "PreToolUse",
             "PermissionRequest",
+            "ToolPermission",
             "PostToolUse",
             "PostToolUseFailure",
             "Notification",
@@ -67,7 +71,7 @@ final class CodexHookNormalizer {
 
         let status: String
         switch event {
-        case "PermissionRequest":
+        case "PermissionRequest", "ToolPermission":
             status = "waiting_for_approval"
         case "Notification":
             if stringValue(payload["notification_type"]) == "idle_prompt" {
