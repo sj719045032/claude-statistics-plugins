@@ -951,6 +951,8 @@ private struct UsageSnapshot {
     }
 
     private init(rawInputTokens: Int, rawCachedInputTokens: Int, rawOutputTokens: Int, rawReasoningOutputTokens: Int, reportedTotalTokens rawReportedTotalTokens: Int?) {
+        let componentTotal = rawInputTokens + rawCachedInputTokens + rawOutputTokens + rawReasoningOutputTokens
+        let totalOnlyFallback = componentTotal == 0 ? max(0, rawReportedTotalTokens ?? 0) : 0
         let inputIncludesCached: Bool
         let outputIncludesReasoning: Bool
         if let rawReportedTotalTokens {
@@ -965,7 +967,12 @@ private struct UsageSnapshot {
             outputIncludesReasoning = true
         }
 
-        inputTokens = inputIncludesCached ? max(0, rawInputTokens - rawCachedInputTokens) : rawInputTokens
+        // Some Codex rollout files only report total_tokens and leave the
+        // component fields at zero. Bucket that total as input so full stats
+        // remain non-empty and the cache fingerprint can be committed.
+        inputTokens = totalOnlyFallback > 0
+            ? totalOnlyFallback
+            : (inputIncludesCached ? max(0, rawInputTokens - rawCachedInputTokens) : rawInputTokens)
         cachedInputTokens = rawCachedInputTokens
         outputTokens = outputIncludesReasoning ? rawOutputTokens : rawOutputTokens + rawReasoningOutputTokens
         reasoningOutputTokens = outputIncludesReasoning ? rawReasoningOutputTokens : 0
