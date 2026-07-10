@@ -31,28 +31,38 @@ final class CodexPricingFetchService: ProviderPricingFetching {
         return try parsePricingFromHTML(html)
     }
 
-    private func parsePricingFromHTML(_ html: String) throws -> [String: ModelPricingRates] {
-        let compact = html
-            .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: "&nbsp;", with: " ")
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-
-        let specs: [(pattern: String, modelIds: [String])] = [
-            (#"gpt-5\.5\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.5"]),
-            (#"gpt-5\.5-pro\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.5-pro"]),
-            (#"gpt-5\.4\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.4"]),
-            (#"gpt-5\.4-mini\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.4-mini"]),
-            (#"gpt-5\.4-nano\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.4-nano"]),
-            (#"gpt-5\.4-pro\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.4-pro"]),
-            (#"gpt-5\.3-codex\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.3-codex"]),
-        ]
-
+    func parsePricingFromHTML(_ html: String) throws -> [String: ModelPricingRates] {
         var results: [String: ModelPricingRates] = [:]
-        for spec in specs {
-            if let pricing = firstMatchPricing(in: compact, pattern: spec.pattern) {
-                for id in spec.modelIds {
-                    results[id] = pricing
+        for table in elementContents(named: "table", in: html) {
+            guard let headers = columnHeaders(in: table),
+                  let modelIndex = headers.firstIndex(of: "model"),
+                  let inputIndex = headers.firstIndex(of: "input"),
+                  let cachedInputIndex = headers.firstIndex(of: "cached input"),
+                  let outputIndex = headers.firstIndex(of: "output") else {
+                continue
+            }
+            let cacheWriteIndex = headers.firstIndex(of: "cache writes")
+            let requiredIndex = [modelIndex, inputIndex, cachedInputIndex, outputIndex, cacheWriteIndex ?? 0].max() ?? 0
+
+            for row in elementContents(named: "tr", in: table) {
+                let cells = elementContents(named: "td", in: row).map(htmlText)
+                guard cells.count > requiredIndex,
+                      let modelId = modelId(from: cells[modelIndex]),
+                      results[modelId] == nil,
+                      let input = dollarValue(cells[inputIndex]),
+                      let output = dollarValue(cells[outputIndex]) else {
+                    continue
                 }
+
+                let cachedInput = dollarValue(cells[cachedInputIndex]) ?? 0
+                let cacheWrite = cacheWriteIndex.flatMap { dollarValue(cells[$0]) } ?? input
+                results[modelId] = ModelPricingRates(
+                    input: input,
+                    output: output,
+                    cacheWrite5m: cacheWrite,
+                    cacheWrite1h: cacheWrite,
+                    cacheRead: cachedInput
+                )
             }
         }
 
@@ -63,27 +73,60 @@ final class CodexPricingFetchService: ProviderPricingFetching {
         return results
     }
 
-    private func firstMatchPricing(in text: String, pattern: String) -> ModelPricingRates? {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-        guard let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else {
+    private func columnHeaders(in table: String) -> [String]? {
+        let headerArea = elementContents(named: "thead", in: table).first ?? table
+        for row in elementContents(named: "tr", in: headerArea).reversed() {
+            let headers = elementContents(named: "th", in: row)
+                .map { htmlText($0).lowercased() }
+            if headers.contains("model"), headers.contains("input"), headers.contains("output") {
+                return headers
+            }
+        }
+        return nil
+    }
+
+    private func elementContents(named tag: String, in html: String) -> [String] {
+        guard let regex = try? NSRegularExpression(
+            pattern: "<\(tag)\\b[^>]*>(.*?)</\(tag)>",
+            options: [.caseInsensitive, .dotMatchesLineSeparators]
+        ) else {
+            return []
+        }
+        return regex.matches(in: html, range: NSRange(html.startIndex..., in: html)).compactMap { match in
+            guard let range = Range(match.range(at: 1), in: html) else { return nil }
+            return String(html[range])
+        }
+    }
+
+    private func htmlText(_ html: String) -> String {
+        html
+            .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&#36;", with: "$")
+            .replacingOccurrences(of: "&dollar;", with: "$")
+            .replacingOccurrences(of: "&mdash;", with: "—")
+            .replacingOccurrences(of: "&ndash;", with: "–")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func modelId(from text: String) -> String? {
+        var candidate = text.lowercased()
+        if let qualifier = candidate.firstIndex(of: "(") {
+            candidate = String(candidate[..<qualifier])
+        }
+        candidate = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard candidate.range(of: #"^(?:gpt-[0-9][0-9a-z.\-]*|o[0-9][0-9a-z.\-]*)$"#, options: .regularExpression) != nil else {
             return nil
         }
+        return candidate
+    }
 
-        let values = (1..<match.numberOfRanges).compactMap { index -> Double? in
-            guard let range = Range(match.range(at: index), in: text) else { return nil }
-            return Double(text[range])
-        }
-        guard values.count >= 2 else { return nil }
-
-        let input = values[0]
-        let cachedInput = values.count >= 3 ? values[1] : input * 0.1
-        let output = values.count >= 3 ? values[2] : values[1]
-        return ModelPricingRates(
-            input: input,
-            output: output,
-            cacheWrite5m: input,
-            cacheWrite1h: input,
-            cacheRead: cachedInput
-        )
+    private func dollarValue(_ text: String) -> Double? {
+        let cleaned = text
+            .replacingOccurrences(of: "$", with: "")
+            .replacingOccurrences(of: ",", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return Double(cleaned)
     }
 }

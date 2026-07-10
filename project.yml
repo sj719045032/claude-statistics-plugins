@@ -158,6 +158,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.CodexPlugin
         PRODUCT_NAME: CodexPlugin
+    scheme:
+      testTargets:
+        - CodexPluginTests
 
   CursorPlugin:
     type: bundle
@@ -505,6 +508,20 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.ZedPlugin
         PRODUCT_NAME: ZedPlugin
+
+  CodexPluginTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/CodexPluginTests
+      - path: Sources/CodexPlugin/CodexPricingFetchService.swift
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.CodexPluginTests
+        GENERATE_INFOPLIST_FILE: YES
 
   GLMSubscriptionPlugin:
     type: bundle
