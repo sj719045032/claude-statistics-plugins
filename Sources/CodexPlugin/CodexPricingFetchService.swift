@@ -38,12 +38,15 @@ final class CodexPricingFetchService: ProviderPricingFetching {
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
 
         let specs: [(pattern: String, modelIds: [String])] = [
-            (#"gpt-5\.5\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.5"]),
-            (#"gpt-5\.5-pro\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.5-pro"]),
-            (#"gpt-5\.4\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.4"]),
-            (#"gpt-5\.4-mini\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.4-mini"]),
-            (#"gpt-5\.4-nano\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.4-nano"]),
-            (#"gpt-5\.4-pro\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.4-pro"]),
+            (#"gpt-5\.6-sol\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.6-sol"]),
+            (#"gpt-5\.6-terra\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.6-terra"]),
+            (#"gpt-5\.6-luna\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.6-luna"]),
+            (#"gpt-5\.5\s*\$([0-9.]+)\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.5"]),
+            (#"gpt-5\.5-pro\s*\$([0-9.]+)\s*-\s*-\s*\$([0-9.]+)"#, ["gpt-5.5-pro"]),
+            (#"gpt-5\.4\s*\$([0-9.]+)\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.4"]),
+            (#"gpt-5\.4-mini\s*\$([0-9.]+)\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.4-mini"]),
+            (#"gpt-5\.4-nano\s*\$([0-9.]+)\s*\$([0-9.]+)\s*-\s*\$([0-9.]+)"#, ["gpt-5.4-nano"]),
+            (#"gpt-5\.4-pro\s*\$([0-9.]+)\s*-\s*-\s*\$([0-9.]+)"#, ["gpt-5.4-pro"]),
             (#"gpt-5\.3-codex\s*\$([0-9.]+)\s*\$([0-9.]+)\s*\$([0-9.]+)"#, ["gpt-5.3-codex"]),
         ]
 
@@ -76,13 +79,29 @@ final class CodexPricingFetchService: ProviderPricingFetching {
         guard values.count >= 2 else { return nil }
 
         let input = values[0]
-        let cachedInput = values.count >= 3 ? values[1] : input * 0.1
-        let output = values.count >= 3 ? values[2] : values[1]
+        let cachedInput: Double
+        let cacheWrite: Double
+        let output: Double
+        // Current standard rows include cache-write pricing; older and
+        // specialized rows omit one or both cache columns.
+        if values.count >= 4 {
+            cachedInput = values[1]
+            cacheWrite = values[2]
+            output = values[3]
+        } else if values.count == 3 {
+            cachedInput = values[1]
+            cacheWrite = input
+            output = values[2]
+        } else {
+            cachedInput = 0
+            cacheWrite = input
+            output = values[1]
+        }
         return ModelPricingRates(
             input: input,
             output: output,
-            cacheWrite5m: input,
-            cacheWrite1h: input,
+            cacheWrite5m: cacheWrite,
+            cacheWrite1h: cacheWrite,
             cacheRead: cachedInput
         )
     }

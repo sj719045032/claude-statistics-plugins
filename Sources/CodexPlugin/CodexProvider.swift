@@ -235,10 +235,13 @@ enum CodexCostEstimator {
 }
 
 enum CodexPricingCatalog {
-    // Source: OpenAI pricing pages verified on 2026-06-26
+    // Source: OpenAI pricing pages verified on 2026-07-10
     static let builtinModels: [String: ModelPricingRates] = [
         "gpt-5":              ModelPricingRates(input: 1.25, output: 10.0, cacheWrite5m: 1.25, cacheWrite1h: 1.25, cacheRead: 0.125),
         "gpt-5.1":            ModelPricingRates(input: 1.25, output: 10.0, cacheWrite5m: 1.25, cacheWrite1h: 1.25, cacheRead: 0.125),
+        "gpt-5.6-sol":        ModelPricingRates(input: 5.00, output: 30.0, cacheWrite5m: 6.25, cacheWrite1h: 6.25, cacheRead: 0.50),
+        "gpt-5.6-terra":      ModelPricingRates(input: 2.50, output: 15.0, cacheWrite5m: 3.125, cacheWrite1h: 3.125, cacheRead: 0.25),
+        "gpt-5.6-luna":       ModelPricingRates(input: 1.00, output: 6.0, cacheWrite5m: 1.25, cacheWrite1h: 1.25, cacheRead: 0.10),
         "gpt-5.5":            ModelPricingRates(input: 5.00, output: 30.0, cacheWrite5m: 5.00, cacheWrite1h: 5.00, cacheRead: 0.50),
         "gpt-5.5-pro":        ModelPricingRates(input: 30.0, output: 180.0, cacheWrite5m: 30.0, cacheWrite1h: 30.0, cacheRead: 0.0),
         "gpt-5.4":            ModelPricingRates(input: 2.50, output: 15.0, cacheWrite5m: 2.50, cacheWrite1h: 2.50, cacheRead: 0.25),
