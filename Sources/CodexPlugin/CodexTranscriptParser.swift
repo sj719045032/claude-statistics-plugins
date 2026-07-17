@@ -13,8 +13,10 @@ final class CodexTranscriptParser {
         var userCount = 0
         var assistantCount = 0
         var latestUsage: UsageSnapshot?
+        var forkedUsage = UsageTotals()
+        let scope = readEventScope(at: path)
 
-        for event in readEvents(at: path) {
+        for event in scope.events {
             if quick.startTime == nil, let timestamp = event.timestamp {
                 quick.startTime = timestamp
             }
@@ -70,10 +72,16 @@ final class CodexTranscriptParser {
                     }
                 }
                 if let usage = tokenUsage(from: event.payload) {
-                    latestUsage = usage.total
+                    if scope.usesPerRequestTokenUsage {
+                        forkedUsage.add(usage.last)
+                    } else {
+                        latestUsage = usage.total
+                    }
                     let lastContext = usage.last.inputTokens + usage.last.cachedInputTokens
                     if lastContext > 0 {
-                        quick.totalTokens = usage.total.totalTokens
+                        quick.totalTokens = scope.usesPerRequestTokenUsage
+                            ? forkedUsage.totalTokens
+                            : usage.total.totalTokens
                     }
                 }
 
@@ -84,16 +92,19 @@ final class CodexTranscriptParser {
 
         quick.userMessageCount = userCount
         quick.messageCount = userCount + assistantCount
-        quick.totalTokens = latestUsage?.totalTokens ?? quick.totalTokens
-        if let latestUsage, let model = quick.model {
+        let finalUsage = scope.usesPerRequestTokenUsage
+            ? forkedUsage.nonEmpty
+            : latestUsage.map(UsageTotals.init)
+        quick.totalTokens = finalUsage?.totalTokens ?? quick.totalTokens
+        if let finalUsage, let model = quick.model {
             quick.estimatedCost = CodexCostEstimator.estimate(
                 model: model,
-                inputTokens: latestUsage.inputTokens,
-                outputTokens: latestUsage.outputTokens,
+                inputTokens: finalUsage.inputTokens,
+                outputTokens: finalUsage.outputTokens,
                 cacheCreation5mTokens: 0,
                 cacheCreation1hTokens: 0,
                 cacheCreationTotalTokens: 0,
-                cacheReadTokens: latestUsage.cachedInputTokens
+                cacheReadTokens: finalUsage.cachedInputTokens
             )
         }
         if let note = quick.latestProgressNote?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
@@ -108,8 +119,9 @@ final class CodexTranscriptParser {
         var previousTotalUsage: UsageSnapshot?
         var userMessageTimes: [Date] = []
         var toolUseTimes: [(Date, String)] = []
+        let scope = readEventScope(at: path)
 
-        for event in readEvents(at: path) {
+        for event in scope.events {
             if let timestamp = event.timestamp {
                 if stats.startTime == nil || timestamp < stats.startTime! { stats.startTime = timestamp }
                 if stats.endTime == nil || timestamp > stats.endTime! { stats.endTime = timestamp }
@@ -178,8 +190,13 @@ final class CodexTranscriptParser {
                     stats.contextTokens = contextTokens
                 }
 
-                let delta = usage.total.delta(from: previousTotalUsage)
-                previousTotalUsage = usage.total
+                let delta: UsageSnapshot
+                if scope.usesPerRequestTokenUsage {
+                    delta = usage.last
+                } else {
+                    delta = usage.total.delta(from: previousTotalUsage)
+                    previousTotalUsage = usage.total
+                }
 
                 guard delta.totalTokens > 0, let timestamp = event.timestamp else { continue }
 
@@ -347,7 +364,7 @@ final class CodexTranscriptParser {
         var toolMessageIndices: [String: Int] = [:]
         var toolResults: [String: String] = [:]
 
-        for (eventIndex, event) in readEvents(at: path).enumerated() {
+        for (eventIndex, event) in readEventScope(at: path).events.enumerated() {
             switch event.type {
             case "response_item":
                 guard let payloadType = event.payload["type"] as? String else { continue }
@@ -432,7 +449,7 @@ final class CodexTranscriptParser {
         var messages: [SearchIndexMessage] = []
         var toolResults: [String: (content: String, timestamp: Date?)] = [:]
 
-        for event in readEvents(at: path) {
+        for event in readEventScope(at: path).events {
             switch event.type {
             case "response_item":
                 guard let payloadType = event.payload["type"] as? String else { continue }
@@ -478,8 +495,9 @@ final class CodexTranscriptParser {
         var buckets: [Date: (tokens: Int, cost: Double)] = [:]
         var activeModel = "Unknown"
         var previousTotalUsage: UsageSnapshot?
+        let scope = readEventScope(at: filePath)
 
-        for event in readEvents(at: filePath) {
+        for event in scope.events {
             switch event.type {
             case "turn_context":
                 if let model = event.payload["model"] as? String, !model.isEmpty {
@@ -492,8 +510,13 @@ final class CodexTranscriptParser {
                     continue
                 }
 
-                let delta = usage.total.delta(from: previousTotalUsage)
-                previousTotalUsage = usage.total
+                let delta: UsageSnapshot
+                if scope.usesPerRequestTokenUsage {
+                    delta = usage.last
+                } else {
+                    delta = usage.total.delta(from: previousTotalUsage)
+                    previousTotalUsage = usage.total
+                }
                 guard delta.totalTokens > 0 else { continue }
 
                 let bucket = granularity.bucketStart(for: timestamp)
@@ -543,6 +566,53 @@ final class CodexTranscriptParser {
                 let timestamp = TranscriptParserCommons.parseISOTimestamp(json["timestamp"] as? String)
                 return Event(type: type, timestamp: timestamp, payload: payload)
             }
+    }
+
+    /// Forked Codex subagents persist the parent's completed rollout as an
+    /// initial context prefix. That prefix is useful to the model, but it is
+    /// not activity performed by the child and must not appear in the child's
+    /// transcript, search index, token totals, or cost.
+    ///
+    /// Direct (older) subagent rollouts do not have `forked_from_id` and are
+    /// already child-only, so they pass through unchanged. In forked rollouts,
+    /// the first inter-agent `NEW_TASK` message is the stable ownership marker.
+    /// Start at its immediately preceding `task_started` event so the child's
+    /// `turn_context` (and therefore model attribution) remains available.
+    private func readEventScope(at path: String) -> EventScope {
+        let events = readEvents(at: path)
+        guard let sessionMeta = events.first(where: { $0.type == "session_meta" }),
+              (sessionMeta.payload["thread_source"] as? String) == "subagent",
+              let forkedFromID = sessionMeta.payload["forked_from_id"] as? String,
+              !forkedFromID.isEmpty else {
+            return EventScope(events: events, usesPerRequestTokenUsage: false)
+        }
+
+        guard let markerIndex = events.firstIndex(where: isNewSubagentTask) else {
+            // The child can be scanned between file creation and task delivery.
+            // Returning no events keeps inherited parent history out of caches;
+            // the watcher reparses once NEW_TASK is appended.
+            return EventScope(events: [], usesPerRequestTokenUsage: true)
+        }
+
+        let prefix = events[..<markerIndex]
+        let startIndex = prefix.lastIndex(where: isTaskStarted) ?? markerIndex
+        return EventScope(
+            events: Array(events[startIndex...]),
+            usesPerRequestTokenUsage: true
+        )
+    }
+
+    private func isNewSubagentTask(_ event: Event) -> Bool {
+        guard event.type == "response_item",
+              (event.payload["type"] as? String) == "agent_message",
+              let text = extractMessageText(from: event.payload) else {
+            return false
+        }
+        return text.components(separatedBy: .newlines).contains("Message Type: NEW_TASK")
+    }
+
+    private func isTaskStarted(_ event: Event) -> Bool {
+        event.type == "event_msg" && (event.payload["type"] as? String) == "task_started"
     }
 
     private func extractMessageText(from payload: [String: Any]) -> String? {
@@ -917,6 +987,11 @@ private struct Event {
     let payload: [String: Any]
 }
 
+private struct EventScope {
+    let events: [Event]
+    let usesPerRequestTokenUsage: Bool
+}
+
 private struct ToolDescriptor {
     let toolName: String
     let summary: String
@@ -994,6 +1069,34 @@ private struct UsageSnapshot {
                 previous.reportedTotalTokens.map { max(0, total - $0) } ?? total
             }
         )
+    }
+}
+
+private struct UsageTotals {
+    var inputTokens = 0
+    var cachedInputTokens = 0
+    var outputTokens = 0
+
+    init() {}
+
+    init(_ snapshot: UsageSnapshot) {
+        inputTokens = snapshot.inputTokens
+        cachedInputTokens = snapshot.cachedInputTokens
+        outputTokens = snapshot.outputTokens
+    }
+
+    var totalTokens: Int {
+        inputTokens + cachedInputTokens + outputTokens
+    }
+
+    var nonEmpty: UsageTotals? {
+        totalTokens > 0 ? self : nil
+    }
+
+    mutating func add(_ snapshot: UsageSnapshot) {
+        inputTokens += snapshot.inputTokens
+        cachedInputTokens += snapshot.cachedInputTokens
+        outputTokens += snapshot.outputTokens
     }
 }
 

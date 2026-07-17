@@ -3,6 +3,16 @@ import Darwin
 import SQLite3
 import ClaudeStatisticsKit
 
+/// Provider-neutral metadata contract consumed by the host. These literals
+/// intentionally avoid requiring a new ClaudeStatisticsKit SDK release.
+private enum SessionRelationshipMetadataKey {
+    static let parentSessionID = "session.relationship.parentID"
+    static let agentDepth = "session.relationship.agentDepth"
+    static let agentPath = "session.relationship.agentPath"
+    static let agentNickname = "session.relationship.agentNickname"
+    static let parserRevision = "session.parserRevision"
+}
+
 final class CodexSessionScanner {
     static let shared = CodexSessionScanner()
 
@@ -71,6 +81,7 @@ final class CodexSessionScanner {
             let lastModified = stat.mtime ?? fallbackModified
             let trimmedCwd = cwd.trimmingCharacters(in: .whitespacesAndNewlines)
             let projectPath = !trimmedCwd.isEmpty ? trimmedCwd : fallbackProjectPath(title: title, filePath: filePath, sessionId: id)
+            let metadata = sessionMetadata(from: source)
 
             sessions.append(Session(
                 id: id,
@@ -82,11 +93,33 @@ final class CodexSessionScanner {
                 lastModified: lastModified,
                 fileSize: fileSize,
                 cwd: trimmedCwd.isEmpty ? nil : trimmedCwd,
-                metadata: source.isEmpty ? [:] : ["codex.source": source]
+                metadata: metadata
             ))
         }
 
         return sessions.sorted { $0.lastModified > $1.lastModified }
+    }
+
+    private func sessionMetadata(from source: String) -> [String: String] {
+        guard !source.isEmpty else { return [:] }
+
+        var metadata = ["codex.source": source]
+        guard let data = source.data(using: .utf8),
+              let envelope = try? JSONDecoder().decode(CodexThreadSource.self, from: data),
+              let spawn = envelope.subagent?.threadSpawn else {
+            return metadata
+        }
+
+        metadata[SessionRelationshipMetadataKey.parentSessionID] = spawn.parentThreadID
+        metadata[SessionRelationshipMetadataKey.agentDepth] = String(spawn.depth)
+        metadata[SessionRelationshipMetadataKey.parserRevision] = "3"
+        if let agentPath = spawn.agentPath, !agentPath.isEmpty {
+            metadata[SessionRelationshipMetadataKey.agentPath] = agentPath
+        }
+        if let nickname = spawn.agentNickname, !nickname.isEmpty {
+            metadata[SessionRelationshipMetadataKey.agentNickname] = nickname
+        }
+        return metadata
     }
 
     private func columnText(_ stmt: OpaquePointer?, at index: Int32) -> String? {
@@ -200,5 +233,31 @@ final class CodexSessionScanner {
             return nil
         }
         return String(fileName[idRange])
+    }
+}
+
+private struct CodexThreadSource: Decodable {
+    let subagent: Subagent?
+
+    struct Subagent: Decodable {
+        let threadSpawn: ThreadSpawn?
+
+        enum CodingKeys: String, CodingKey {
+            case threadSpawn = "thread_spawn"
+        }
+    }
+
+    struct ThreadSpawn: Decodable {
+        let parentThreadID: String
+        let depth: Int
+        let agentPath: String?
+        let agentNickname: String?
+
+        enum CodingKeys: String, CodingKey {
+            case parentThreadID = "parent_thread_id"
+            case depth
+            case agentPath = "agent_path"
+            case agentNickname = "agent_nickname"
+        }
     }
 }
