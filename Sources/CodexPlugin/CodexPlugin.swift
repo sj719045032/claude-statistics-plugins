@@ -61,6 +61,10 @@ public final class CodexPlugin: NSObject, ProviderPlugin, ProviderAccountUIProvi
         CodexProvider.shared
     }
 
+    public func makeSessionFilters() -> [any SessionEventFilter] {
+        [CodexVisibleThreadFilter()]
+    }
+
     public func makeAccountCardAccessory(
         context: any ProviderAccountUIContext,
         triggerStyle: AccountSwitcherTriggerStyle

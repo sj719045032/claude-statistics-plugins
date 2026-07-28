@@ -39,10 +39,16 @@ final class CodexSessionScanner {
 
     func scanSessions() -> [Session] {
         let dbPath = Self.codexStateDBPath
-        guard let db = openOrReuseDB(path: dbPath) else { return [] }
+        guard let db = openOrReuseDB(path: dbPath) else {
+            CodexVisibleThreadIndex.shared.markUnavailable()
+            return []
+        }
 
+        let threadSourceExpression = Self.threadsTableHasThreadSource(db: db)
+            ? "thread_source"
+            : "NULL AS thread_source"
         let sql = """
-            SELECT id, rollout_path, title, cwd, created_at, updated_at, source
+            SELECT id, rollout_path, title, cwd, created_at, updated_at, source, \(threadSourceExpression)
             FROM threads
             WHERE archived = 0 AND rollout_path IS NOT NULL
             ORDER BY updated_at DESC
@@ -53,15 +59,26 @@ final class CodexSessionScanner {
         guard prepResult == SQLITE_OK else {
             let msg = String(cString: sqlite3_errmsg(db))
             DiagnosticLogger.shared.error("Codex state DB prepare failed (code=\(prepResult)): \(msg)")
+            CodexVisibleThreadIndex.shared.markUnavailable()
             return []
         }
         defer { sqlite3_finalize(stmt) }
 
         var sessions: [Session] = []
+        var visibleThreadIDs: Set<String> = []
 
         while sqlite3_step(stmt) == SQLITE_ROW {
-            guard let id = columnText(stmt, at: 0),
-                  let filePath = columnText(stmt, at: 1),
+            guard let id = columnText(stmt, at: 0) else { continue }
+            let source = columnText(stmt, at: 6) ?? ""
+            let threadSource = columnText(stmt, at: 7)
+            if CodexThreadVisibility.isUserVisible(
+                threadSource: threadSource,
+                legacySource: source
+            ) {
+                visibleThreadIDs.insert(id)
+            }
+
+            guard let filePath = columnText(stmt, at: 1),
                   !filePath.isEmpty,
                   let stat = Self.fileStat(at: filePath) else {
                 continue
@@ -71,7 +88,6 @@ final class CodexSessionScanner {
             let cwd = columnText(stmt, at: 3) ?? ""
             let createdAt = sqlite3_column_int64(stmt, 4)
             let updatedAt = sqlite3_column_int64(stmt, 5)
-            let source = columnText(stmt, at: 6) ?? ""
 
             let fileSize = stat.size
             guard fileSize > 0 else { continue }
@@ -97,6 +113,7 @@ final class CodexSessionScanner {
             ))
         }
 
+        CodexVisibleThreadIndex.shared.replace(with: visibleThreadIDs)
         return sessions.sorted { $0.lastModified > $1.lastModified }
     }
 
@@ -212,6 +229,16 @@ final class CodexSessionScanner {
         defer { sqlite3_finalize(stmt) }
         let sql = "SELECT 1 FROM threads LIMIT 1"
         return sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK
+    }
+
+    private static func threadsTableHasThreadSource(db: OpaquePointer) -> Bool {
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+        let sql = "SELECT 1 FROM pragma_table_info('threads') WHERE name = 'thread_source' LIMIT 1"
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            return false
+        }
+        return sqlite3_step(stmt) == SQLITE_ROW
     }
 
     private func fallbackProjectPath(title: String, filePath: String, sessionId: String) -> String {
