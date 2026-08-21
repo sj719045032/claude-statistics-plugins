@@ -320,6 +320,37 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.KittyPlugin
         PRODUCT_NAME: KittyPlugin
 
+  TermiusPlugin:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/TermiusPlugin
+    dependencies:
+      - package: ClaudeStatisticsKit
+        product: ClaudeStatisticsKit
+    info:
+      path: Sources/TermiusPlugin/Info.plist
+      properties:
+        CFBundleIdentifier: com.tinystone.TermiusPlugin
+        CFBundleName: TermiusPlugin
+        CFBundleExecutable: TermiusPlugin
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: TermiusPlugin
+        CSPluginManifest:
+          id: com.termius-dmg.mac
+          kind: terminal
+          displayName: Termius
+          version: 1.0.0
+          minHostAPIVersion: 0.1.0
+          permissions: []
+          principalClass: TermiusPlugin
+          category: terminal
+    settings:
+      groups: [pluginBundle]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tinystone.TermiusPlugin
+        PRODUCT_NAME: TermiusPlugin
+
   TraePlugin:
     type: bundle
     platform: macOS
